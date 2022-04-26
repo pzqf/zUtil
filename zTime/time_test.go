@@ -3,33 +3,34 @@ package zTime
 import (
 	"fmt"
 	"testing"
-	"time"
 )
 
 func Test(t *testing.T) {
-	now := time.Now()
 
-	fmt.Println("GetNowSeconds:", GetNowSeconds())
-	fmt.Println("GetNowString:", GetNowString())
+	fmt.Println("Now Seconds:", Now().Time().Unix())
+	fmt.Println("Now String:", Time2String(Now().Time()))
 
-	fmt.Println("GetNano:", GetNano(now))
-	fmt.Println("GetMillisecond:", GetMillisecond(now))
-	fmt.Println("GetToday0ClockSeconds:", GetToday0ClockSeconds())
+	fmt.Println("now Nano:", Now().Time().UnixNano())
+	fmt.Println("GetMillisecond:", Now().Time().UnixMilli())
 
-	fmt.Println("GetFormatYMDHMS:", GetFormatYMDHMS(now))
-	fmt.Println("SecondsToTime:", SecondsToTime(GetNowSeconds()))
-	fmt.Println("GetTodaySeconds:", GetTodaySeconds())
+	fmt.Println("SecondsToTime:", Seconds2Time(Now().Time().Unix()))
+	fmt.Println("GetTodaySeconds:", int(Now().Time().Sub(Now().BeginOfDay()).Seconds()))
+	fmt.Println("GetTodaySeconds:", int(Now().Time().Sub(Now().SetZone("dd", -3).BeginOfDay()).Seconds()))
 
-	fmt.Println("GetLastWeek0ClockSeconds:", GetLastWeek0ClockSeconds())
-	fmt.Println(Time2String(SecondsToTime(GetLastWeek0ClockSeconds())))
+	fmt.Println("Seconds2String:", Seconds2String(Now().Time().Unix()))
 
-	fmt.Println("GetLastMonth0ClockSeconds:", GetLastMonth0ClockSeconds())
-	fmt.Println(Time2String(SecondsToTime(GetLastMonth0ClockSeconds())))
+	fmt.Println("GetThisMonthRestDays:", int(Now().EndOfMonth().Sub(Now().Time()).Seconds())/24/60/60)
+	fmt.Println("GetThisYearRestDays:", int(Now().EndOfYear().Sub(Now().Time()).Seconds())/24/60/60)
 
-	fmt.Println("GetNextMonth0ClockSeconds:", GetNextMonth0ClockSeconds())
-	fmt.Println(Time2String(SecondsToTime(GetNextMonth0ClockSeconds())))
+	fmt.Println("BeginOfDay:", Now().BeginOfDay())
+	fmt.Println("EndOfDay:", Now().EndOfDay())
 
-	fmt.Println("GetThisMonthRestDays:", GetThisMonthRestDays())
+	fmt.Println("BeginOfWeek:", Now().BeginOfWeek())
+	fmt.Println("EndOfWeek:", Now().EndOfWeek())
 
-	fmt.Println(time.Now().AddDate(1, 0, 0))
+	fmt.Println("BeginOfMonth:", Now().BeginOfMonth())
+	fmt.Println("EndOfMonth:", Now().EndOfMonth())
+
+	fmt.Println("BeginOfYear:", Now().BeginOfYear())
+	fmt.Println("EndOfYear:", Now().EndOfYear())
 }
