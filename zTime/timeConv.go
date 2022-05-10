@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// TimeLayoutStr such as time.Layout
+// TimeLayoutStr such as time.Layout  "2006-01-02 15:04:05.000"
 var TimeLayoutStr = "2006-01-02 15:04:05"
 
 func Seconds2Time(s int64) time.Time {
