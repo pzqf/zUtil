@@ -6,38 +6,38 @@ import (
 )
 
 type zMap struct {
-	Map   sync.Map
-	Count int32
+	sMap  sync.Map
+	count int32
 }
 
 func NewMap() zMap {
 	return zMap{
-		Count: 0,
+		count: 0,
 	}
 }
 
 func (m *zMap) Get(key interface{}) (interface{}, bool) {
-	return m.Map.Load(key)
+	return m.sMap.Load(key)
 }
 
 func (m *zMap) Store(key, value interface{}) {
-	if _, ok := m.Map.Load(key); !ok {
-		atomic.AddInt32(&m.Count, 1)
+	if _, ok := m.sMap.Load(key); !ok {
+		atomic.AddInt32(&m.count, 1)
 	}
-	m.Map.Store(key, value)
+	m.sMap.Store(key, value)
 }
 
 func (m *zMap) Delete(key interface{}) {
-	if _, ok := m.Map.Load(key); ok {
-		m.Map.Delete(key)
-		atomic.AddInt32(&m.Count, -1)
+	if _, ok := m.sMap.Load(key); ok {
+		m.sMap.Delete(key)
+		atomic.AddInt32(&m.count, -1)
 	}
 }
 
 func (m *zMap) Len() int32 {
-	return m.Count
+	return m.count
 }
 
 func (m *zMap) Range(f func(key, value interface{}) bool) {
-	m.Map.Range(f)
+	m.sMap.Range(f)
 }
