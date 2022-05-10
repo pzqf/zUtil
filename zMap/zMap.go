@@ -5,39 +5,39 @@ import (
 	"sync/atomic"
 )
 
-type zMap struct {
+type Map struct {
 	sMap  sync.Map
 	count int32
 }
 
-func NewMap() zMap {
-	return zMap{
+func NewMap() Map {
+	return Map{
 		count: 0,
 	}
 }
 
-func (m *zMap) Get(key interface{}) (interface{}, bool) {
+func (m *Map) Get(key interface{}) (interface{}, bool) {
 	return m.sMap.Load(key)
 }
 
-func (m *zMap) Store(key, value interface{}) {
+func (m *Map) Store(key, value interface{}) {
 	if _, ok := m.sMap.Load(key); !ok {
 		atomic.AddInt32(&m.count, 1)
 	}
 	m.sMap.Store(key, value)
 }
 
-func (m *zMap) Delete(key interface{}) {
+func (m *Map) Delete(key interface{}) {
 	if _, ok := m.sMap.Load(key); ok {
 		m.sMap.Delete(key)
 		atomic.AddInt32(&m.count, -1)
 	}
 }
 
-func (m *zMap) Len() int32 {
+func (m *Map) Len() int32 {
 	return m.count
 }
 
-func (m *zMap) Range(f func(key, value interface{}) bool) {
+func (m *Map) Range(f func(key, value interface{}) bool) {
 	m.sMap.Range(f)
 }
