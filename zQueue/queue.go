@@ -61,3 +61,17 @@ func (list *Queue) IsEmpty() bool {
 func (list *Queue) Empty() {
 	list.rear = nil
 }
+
+func (list *Queue) Length() int {
+	n := 0
+	it := list.rear
+	for {
+		if it == nil {
+			break
+		}
+		n = n + 1
+		it = it.next
+	}
+
+	return n
+}

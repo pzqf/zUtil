@@ -41,3 +41,16 @@ func (m *Map) Len() int32 {
 func (m *Map) Range(f func(key, value interface{}) bool) {
 	m.sMap.Range(f)
 }
+
+func (m *Map) Clear() {
+	var keys []interface{}
+
+	m.sMap.Range(func(key, value interface{}) bool {
+		keys = append(keys, key)
+		return true
+	})
+
+	for _, v := range keys {
+		m.sMap.Delete(v)
+	}
+}
