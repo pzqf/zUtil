@@ -14,12 +14,9 @@ func Test(t *testing.T) {
 			return
 		}
 	*/
-	AddWord("张三")
-	AddWord("张三四")
-	AddWord("张三四五")
 
-	//PrintDefault()
+	AddWord("abc")
 
-	c := Filter("测张三四试")
+	c := Filter("abcdabcdabcd")
 	fmt.Println(c)
 }
