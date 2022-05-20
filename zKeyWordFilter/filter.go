@@ -81,11 +81,14 @@ func (df *DeaFilter) Filter(content string) string {
 	beginKey := -1
 	k := df.root
 	for i, r := range chars {
-		fmt.Println("---", i, string(r))
 		k = k.Find(r)
 		if k == nil {
 			k = df.root
 			beginKey = -1
+			k = k.Find(r)
+			if k != nil {
+				beginKey = i
+			}
 			continue
 		}
 
