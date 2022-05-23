@@ -88,6 +88,8 @@ func (df *DeaFilter) Filter(content string) string {
 			k = k.Find(r)
 			if k != nil {
 				beginKey = i
+			} else {
+				k = df.root
 			}
 			continue
 		}

@@ -17,6 +17,6 @@ func Test(t *testing.T) {
 
 	AddWord("abc")
 
-	c := Filter("aabcabc")
+	c := Filter("dfdffdaddd")
 	fmt.Println(c)
 }
