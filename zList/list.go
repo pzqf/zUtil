@@ -17,48 +17,51 @@ func New() *List {
 	}
 }
 
-func (l *List) PushFront(v any) {
+func (l *List) PushFront(v any) *list.Element {
 	l.locker.Lock()
 	defer l.locker.Unlock()
-	l.list.PushFront(v)
+	return l.list.PushFront(v)
 }
 
-func (l *List) PushBack(v any) {
+func (l *List) PushBack(v any) *list.Element {
 	l.locker.Lock()
 	defer l.locker.Unlock()
-	l.list.PushBack(v)
+	return l.list.PushBack(v)
 }
 
-func (l *List) Front() any {
+func (l *List) Front() *list.Element {
 	l.locker.Lock()
 	defer l.locker.Unlock()
-	i := l.list.Front()
-	l.list.Remove(i)
-	return i.Value
+	return l.list.Front()
 }
 
-func (l *List) Back() any {
+func (l *List) Back() *list.Element {
 	l.locker.Lock()
 	defer l.locker.Unlock()
-	i := l.list.Back()
-	l.list.Remove(i)
-	return i.Value
+	return l.list.Back()
 }
 
-func (l *List) Len() any {
+func (l *List) Len() int {
 	return l.list.Len()
 }
 
-func (l *List) Range(f func(value any) bool) {
+func (l *List) Range(f func(e *list.Element, value any) bool) {
 	e := l.list.Front()
 	for {
 		if e == nil {
 			break
 		}
-
-		if !f(e.Value) {
+		n := e.Next()
+		if !f(e, e.Value) {
 			break
 		}
-		e = e.Next()
+		e = n
 	}
+}
+
+func (l *List) Remove(e *list.Element) any {
+	l.locker.Lock()
+	defer l.locker.Unlock()
+	l.list.Remove(e)
+	return e.Value
 }

@@ -1,30 +1,36 @@
 package zList
 
 import (
+	"container/list"
 	"fmt"
-	"sync"
 	"testing"
 )
 
 func Test(t *testing.T) {
 	l := New()
-	wg := sync.WaitGroup{}
-	count := 100
-	wg.Add(count)
+	//wg := sync.WaitGroup{}
+	count := 10
+	//wg.Add(count)
 	for i := 0; i < count; i++ {
-		go func(n int) {
-			l.PushBack(n)
-			wg.Done()
-		}(i)
+		//go func(n int) {
+		l.PushBack(i)
+		//	wg.Done()
+		//}(i)
 	}
-	wg.Wait()
+	//	wg.Wait()
+	l.Front()
 
 	fmt.Println("=========", l.Len())
 
-	l.Range(func(value any) bool {
-		if value.(int) > 50 {
-			return false
+	l.Range(func(e *list.Element, value any) bool {
+		if value.(int) > 5 {
+			fmt.Println("remove", value)
+			l.Remove(e)
 		}
+		return true
+	})
+
+	l.Range(func(e *list.Element, value any) bool {
 		fmt.Println(value)
 		return true
 	})
