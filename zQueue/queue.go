@@ -1,32 +1,48 @@
 package zQueue
 
+import (
+	"sync"
+)
+
 type Node struct {
 	data interface{}
 	next *Node
 }
 
 type Queue struct {
-	rear *Node
+	locker sync.Mutex
+	rear   *Node
 }
 
-func (list *Queue) Enqueue(i interface{}) {
-	data := &Node{data: i}
-	if list.rear != nil {
-		data.next = list.rear
+func NewQueue() *Queue {
+	return &Queue{
+		locker: sync.Mutex{},
+		rear:   nil,
 	}
-	list.rear = data
 }
 
-func (list *Queue) Dequeue() (interface{}, bool) {
-	if list.rear == nil {
+func (q *Queue) Enqueue(i interface{}) {
+	q.locker.Lock()
+	defer q.locker.Unlock()
+	data := &Node{data: i}
+	if q.rear != nil {
+		data.next = q.rear
+	}
+	q.rear = data
+}
+
+func (q *Queue) Dequeue() (interface{}, bool) {
+	q.locker.Lock()
+	defer q.locker.Unlock()
+	if q.rear == nil {
 		return 0, false
 	}
-	if list.rear.next == nil {
-		i := list.rear.data
-		list.rear = nil
+	if q.rear.next == nil {
+		i := q.rear.data
+		q.rear = nil
 		return i, true
 	}
-	current := list.rear
+	current := q.rear
 	for {
 		if current.next.next == nil {
 			i := current.next.data
@@ -37,16 +53,16 @@ func (list *Queue) Dequeue() (interface{}, bool) {
 	}
 }
 
-func (list *Queue) Peek() (interface{}, bool) {
-	if list.rear == nil {
+func (q *Queue) Peek() (interface{}, bool) {
+	if q.rear == nil {
 		return 0, false
 	}
-	return list.rear.data, true
+	return q.rear.data, true
 }
 
-func (list *Queue) Get() []interface{} {
+func (q *Queue) Get() []interface{} {
 	var items []interface{}
-	current := list.rear
+	current := q.rear
 	for current != nil {
 		items = append(items, current.data)
 		current = current.next
@@ -54,17 +70,17 @@ func (list *Queue) Get() []interface{} {
 	return items
 }
 
-func (list *Queue) IsEmpty() bool {
-	return list.rear == nil
+func (q *Queue) IsEmpty() bool {
+	return q.rear == nil
 }
 
-func (list *Queue) Empty() {
-	list.rear = nil
+func (q *Queue) Empty() {
+	q.rear = nil
 }
 
-func (list *Queue) Length() int {
+func (q *Queue) Length() int {
 	n := 0
-	it := list.rear
+	it := q.rear
 	for {
 		if it == nil {
 			break
