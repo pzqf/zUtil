@@ -26,4 +26,12 @@ func Test(t *testing.T) {
 		fmt.Println("===", key, value)
 		return true
 	})
+
+	m.Clear()
+
+	m.Range(func(key, value interface{}) bool {
+		fmt.Println("=====", key, value)
+		return true
+	})
+	fmt.Println("len:", m.Len())
 }

@@ -53,4 +53,6 @@ func (m *Map) Clear() {
 	for _, v := range keys {
 		m.sMap.Delete(v)
 	}
+
+	atomic.AddInt32(&m.count, -m.count)
 }
