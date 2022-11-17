@@ -3,7 +3,9 @@ package zUtils
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 	"os"
+	"runtime/debug"
 )
 
 func DeepCopy(dst, src interface{}) error {
@@ -21,7 +23,7 @@ func GetCurrentDirectory() string {
 	return ""
 }
 
-func IsExist(path string) bool {
+func IsExistPath(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil || os.IsExist(err)
 }
@@ -32,4 +34,11 @@ func IsDir(dir string) bool {
 		return false
 	}
 	return f.IsDir()
+}
+
+func Recover() error {
+	if err := recover(); err != nil {
+		return errors.New(err.(error).Error() + "/n" + string(debug.Stack()))
+	}
+	return nil
 }
