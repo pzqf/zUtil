@@ -7,7 +7,7 @@ import (
 
 type Map struct {
 	sMap  sync.Map
-	count int32
+	count int64
 }
 
 func NewMap() Map {
@@ -22,7 +22,7 @@ func (m *Map) Get(key interface{}) (interface{}, bool) {
 
 func (m *Map) Store(key, value interface{}) {
 	if _, ok := m.sMap.Load(key); !ok {
-		atomic.AddInt32(&m.count, 1)
+		atomic.AddInt64(&m.count, 1)
 	}
 	m.sMap.Store(key, value)
 }
@@ -30,11 +30,11 @@ func (m *Map) Store(key, value interface{}) {
 func (m *Map) Delete(key interface{}) {
 	if _, ok := m.sMap.Load(key); ok {
 		m.sMap.Delete(key)
-		atomic.AddInt32(&m.count, -1)
+		atomic.AddInt64(&m.count, -1)
 	}
 }
 
-func (m *Map) Len() int32 {
+func (m *Map) Len() int64 {
 	return m.count
 }
 
@@ -54,5 +54,5 @@ func (m *Map) Clear() {
 		m.sMap.Delete(v)
 	}
 
-	atomic.AddInt32(&m.count, -m.count)
+	atomic.AddInt64(&m.count, -m.count)
 }
