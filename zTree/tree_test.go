@@ -7,8 +7,8 @@ import (
 
 type TestData struct {
 	ID   int    `json:"id"`
-	Pid  int    `json:"pid""`
-	Name string `json:"name""`
+	Pid  int    `json:"pid"`
+	Name string `json:"name"`
 }
 
 func (td *TestData) GetId() int {

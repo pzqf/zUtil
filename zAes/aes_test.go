@@ -27,9 +27,18 @@ func TestAes(t *testing.T) {
 	log.Println("解密结果：", string(decrypted))
 
 	log.Println("------------------ CFB模式 --------------------")
-	encrypted = EncryptCFB(origData, key)
+	var err error
+	encrypted, err = EncryptCFB(origData, key)
+	if err != nil {
+		log.Println("加密失败：", err)
+		return
+	}
 	log.Println("密文(hex)：", hex.EncodeToString(encrypted))
 	log.Println("密文(base64)：", base64.StdEncoding.EncodeToString(encrypted))
-	decrypted = DecryptCFB(encrypted, key)
+	decrypted, err = DecryptCFB(encrypted, key)
+	if err != nil {
+		log.Println("解密失败：", err)
+		return
+	}
 	log.Println("解密结果：", string(decrypted))
 }
