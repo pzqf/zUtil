@@ -127,7 +127,31 @@ func (c *Config) LoadINI(filePath string) error {
 			sectionMap[key.Name()] = convertINIValue(key.Value())
 		}
 		
-		data[section.Name()] = sectionMap
+		// 支持嵌套的section名称（如 "database.game"）
+		sectionKeys := strings.Split(section.Name(), ".")
+		currentMap := data
+		
+		// 遍历section的键，创建嵌套map
+		for i, k := range sectionKeys {
+			if i == len(sectionKeys)-1 {
+				// 最后一个section键，将sectionMap放在这里
+				currentMap[k] = sectionMap
+			} else {
+				// 中间的section键，创建嵌套map
+				if currentMap[k] == nil {
+					currentMap[k] = make(map[string]interface{})
+				}
+				// 转换类型
+				var ok bool
+				currentMap, ok = currentMap[k].(map[string]interface{})
+				if !ok {
+					// 如果类型不正确，创建一个新的map
+					currentMap = make(map[string]interface{})
+					currentMap[sectionKeys[i]] = sectionMap
+					break
+				}
+			}
+		}
 	}
 	
 	c.data = data
