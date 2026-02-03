@@ -7,12 +7,11 @@ zUtils是一个Go语言的常用工具集，提供了多种实用的功能模块
 ```
 zUtil/
 ├── contenttype/     # MIME类型管理
-├── zAes/            # AES加密算法
 ├── zCache/          # 缓存工具
 ├── zColor/          # 命令行颜色输出
 ├── zConfig/         # 配置管理
 ├── zConcurrency/    # 并发控制工具
-├── zCrypto/         # 加密工具集合
+├── zCrypto/         # 加密工具集合（包含AES、RSA、哈希等）
 ├── zDataConv/       # 数据类型转换
 ├── zFile/           # 文件操作
 ├── zGps/            # GPS坐标转换
@@ -44,32 +43,110 @@ mime := contenttype.GetFileContentType("test.jpg")
 // 输出: image/jpeg
 ```
 
-### 2. zAes
+### 2. zCrypto
 
-AES加密算法实现，支持CBC、ECB、CFB三种模式。
+完整的加密工具集合，包含AES加密、RSA加密、哈希算法、编码等功能。
+
+#### 2.1 AES加密（支持多种模式）
 
 ```go
-import "github.com/pzqf/zUtil/zAes"
+import "github.com/pzqf/zUtil/zCrypto"
 
-// AES-CBC加密
+// AES-CBC加密（兼容zAes接口）
 key := []byte("1234567890123456")
 origData := []byte("Hello, World!")
-encrypted := zAes.EncryptCBC(origData, key)
+encrypted := zCrypto.EncryptCBC(origData, key)
 
-// AES-CBC解密
-decrypted := zAes.DecryptCBC(encrypted, key)
+// AES-CBC解密（兼容zAes接口）
+decrypted := zCrypto.DecryptCBC(encrypted, key)
 
-// AES-CFB加密（现在返回错误而不是panic）
-encryptedCFB, err := zAes.EncryptCFB(origData, key)
+// AES-CFB加密（返回错误）
+encryptedCFB, err := zCrypto.EncryptCFB(origData, key)
 if err != nil {
     // 处理错误
 }
 
-// AES-CFB解密
-decryptedCFB, err := zAes.DecryptCFB(encryptedCFB, key)
+// AES-CFB解密（返回错误）
+decryptedCFB, err := zCrypto.DecryptCFB(encryptedCFB, key)
 if err != nil {
     // 处理错误
 }
+
+// AES-ECB加密（不安全，仅用于兼容）
+encryptedECB := zCrypto.EncryptECB(origData, key)
+decryptedECB := zCrypto.DecryptECB(encryptedECB, key)
+
+// 推荐使用：AES-GCM加密（支持认证加密，更安全）
+encryptedGCM, _ := zCrypto.AESEncrypt(origData, key, nil, zCrypto.AESModeGCM)
+decryptedGCM, _ := zCrypto.AESDecrypt(encryptedGCM, key, nil, zCrypto.AESModeGCM)
+```
+
+#### 2.2 RSA加密
+
+```go
+import "github.com/pzqf/zUtil/zCrypto"
+
+// 生成RSA密钥对
+privateKey, publicKey, err := zCrypto.GenerateRSAKeyPair(2048)
+if err != nil {
+    // 处理错误
+}
+
+// RSA加密
+encrypted, err := zCrypto.RSAEncrypt([]byte("Hello, World!"), publicKey)
+if err != nil {
+    // 处理错误
+}
+
+// RSA解密
+decrypted, err := zCrypto.RSADecrypt(encrypted, privateKey)
+if err != nil {
+    // 处理错误
+}
+
+// RSA签名
+signature, err := zCrypto.RSASign([]byte("Hello, World!"), privateKey)
+if err != nil {
+    // 处理错误
+}
+
+// RSA验证签名
+err = zCrypto.RSAVerify([]byte("Hello, World!"), signature, publicKey)
+if err != nil {
+    // 签名无效
+}
+```
+
+#### 2.3 哈希算法
+
+```go
+import "github.com/pzqf/zUtil/zCrypto"
+
+// MD5哈希
+md5Hash := zCrypto.MD5("Hello, World!")
+
+// SHA1哈希
+sha1Hash := zCrypto.SHA1("Hello, World!")
+
+// SHA256哈希
+sha256Hash := zCrypto.SHA256("Hello, World!")
+
+// SHA512哈希
+sha512Hash := zCrypto.SHA512("Hello, World!")
+```
+
+#### 2.4 编码
+
+```go
+import "github.com/pzqf/zUtil/zCrypto"
+
+// Base64编码
+encoded := zCrypto.Base64Encode([]byte("Hello, World!"))
+decoded, _ := zCrypto.Base64Decode(encoded)
+
+// Hex编码
+hexEncoded := zCrypto.HexEncode([]byte("Hello, World!"))
+hexDecoded, _ := zCrypto.HexDecode(hexEncoded)
 ```
 
 ### 3. zColor
@@ -198,13 +275,84 @@ m := zMap.NewMap()
 m.Store("key1", "value1")
 
 // 获取元素
-value, exists := m.Get("key1")
+value, exists := m.Load("key1")
 
 // 获取长度
 length := m.Len()
 
 // 清空Map
 m.Clear()
+```
+
+#### TypedMap - 类型安全的Map
+
+```go
+// 创建类型安全的Map
+m := zMap.NewTypedMap[string, int]()
+
+// 存储元素（类型安全）
+m.Store("key1", 123)
+
+// 获取元素（类型安全，无需类型断言）
+value, exists := m.Load("key1")
+// value 是 int 类型，可以直接使用
+
+// 获取长度
+length := m.Len()
+
+// 清空Map
+m.Clear()
+```
+
+#### ShardedMap - 分片Map
+
+```go
+// 创建分片Map（默认32个分片）
+m := zMap.NewShardedMap(32)
+
+// 或使用快捷方法创建32分片Map
+m := zMap.NewShardedMap32()
+
+// 存储元素
+m.Store("key1", "value1")
+
+// 获取元素
+value, exists := m.Load("key1")
+
+// 获取长度
+length := m.Len()
+```
+
+#### TypedShardedMap - 类型安全的分片Map
+
+```go
+// 创建类型安全的分片Map
+m := zMap.NewTypedShardedMap[string, int](32)
+
+// 或使用快捷方法创建32分片的类型安全Map
+m := zMap.NewTypedShardedMap32[string, int]()
+
+// 存储元素（类型安全）
+m.Store("key1", 123)
+
+// 获取元素（类型安全）
+value, exists := m.Load("key1")
+```
+
+#### 完整接口列表
+
+```go
+// 核心接口
+Load(key interface{}) (interface{}, bool)        // 获取元素
+Store(key, value interface{})                     // 存储元素
+Delete(key interface{})                           // 删除元素
+Len() int64                                       // 获取元素数量
+Range(f func(key, value interface{}) bool)        // 遍历元素
+Clear()                                           // 清空Map
+LoadOrStore(key, value interface{}) (interface{}, bool)   // 加载或存储
+LoadAndDelete(key interface{}) (interface{}, bool)        // 加载并删除
+CompareAndDelete(key, oldValue interface{}) bool          // 比较并删除
+CompareAndSwap(key, oldValue, newValue interface{}) bool  // 比较并替换
 ```
 
 ### 10. zQueue
@@ -434,8 +582,6 @@ var serverConfig ServerConfig
 err = config.Unmarshal(&serverConfig)
 ```
 
-
-
 ### 19. zStr
 
 字符串处理工具，支持中文字符处理、命名转换、编辑距离计算等功能。
@@ -582,7 +728,7 @@ import (
 func main() {
     // 输出带颜色的文本
     fmt.Println(zColor.Green("Hello, zUtils!"))
-    
+  
     // 获取当前时间
     now := zTime.Now()
     fmt.Println("当前时间:", zTime.Time2String(now.Time()))
