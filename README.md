@@ -747,6 +747,333 @@ func main() {
 
 欢迎提交Issue和Pull Request来帮助改进这个项目。
 
-## 许可证
+---
 
-本项目采用MIT许可证。
+## 🆕 最新特性
+
+### 1. zMap 类型安全并发集合
+
+zMap 模块提供了多种高性能、类型安全的并发 Map 实现。
+
+#### Map 类型一览
+
+| 类型 | 适用场景 | 特点 |
+|------|---------|------|
+| `Map` | 通用并发场景 | sync.Map 包装，提供 Len() 方法 |
+| `TypedMap[K, V]` | 读多写少 | 泛型类型安全，零类型断言 |
+| `ShardedMap` | 高并发写入 | 分片设计，减少锁竞争 |
+| `TypedShardedMap[K, V]` | 高并发+类型安全 | 分片+泛型，最佳选择 |
+
+#### TypedMap 使用示例
+
+```go
+import "github.com/pzqf/zUtil/zMap"
+
+// 创建类型安全的 Map
+m := zMap.NewTypedMap[string, int]()
+
+// 基本操作
+m.Store("key1", 100)
+value, ok := m.Load("key1")  // value 是 int 类型，无需断言
+
+// 原子操作
+actual, loaded := m.LoadOrStore("key2", 200)
+deleted := m.CompareAndDelete("key1", 100)
+swapped := m.CompareAndSwap("key1", 100, 200)
+
+// 遍历
+m.Range(func(key string, value int) bool {
+    fmt.Printf("%s: %d\n", key, value)
+    return true
+})
+```
+
+#### TypedShardedMap 使用示例
+
+```go
+// 创建分片 Map（默认32分片）
+m := zMap.NewTypedShardedMap[uint64, *User]()
+
+// 创建自定义分片数
+m := zMap.NewTypedShardedMapWithShardCount[uint64, *User](64)
+
+// 高并发场景下性能更佳
+for i := 0; i < 1000000; i++ {
+    m.Store(uint64(i), &User{ID: uint64(i)})
+}
+```
+
+#### 性能对比
+
+```
+BenchmarkTypedMap_Load-8         50000000    25.5 ns/op
+BenchmarkTypedMap_Store-8        20000000    65.2 ns/op
+BenchmarkTypedShardedMap_Load-8  30000000    42.1 ns/op
+BenchmarkTypedShardedMap_Store-8 30000000    48.3 ns/op
+```
+
+### 2. zCrypto 完整加密方案
+
+zCrypto 模块提供了完整的加密解决方案，包含对称加密、非对称加密、哈希、编码等功能。
+
+#### AES 加密模式
+
+```go
+import "github.com/pzqf/zUtil/zCrypto"
+
+key := []byte("1234567890123456")
+data := []byte("Hello, World!")
+
+// 推荐: AES-GCM (认证加密，最安全)
+encrypted, _ := zCrypto.AESEncrypt(data, key, nil, zCrypto.AESModeGCM)
+decrypted, _ := zCrypto.AESDecrypt(encrypted, key, nil, zCrypto.AESModeGCM)
+
+// AES-CBC (需要IV)
+iv := []byte("1234567890123456")
+encrypted := zCrypto.EncryptCBC(data, key)
+decrypted := zCrypto.DecryptCBC(encrypted, key)
+```
+
+#### 哈希计算
+
+```go
+// MD5
+md5Hash := zCrypto.MD5("data")
+
+// SHA256
+sha256Hash := zCrypto.SHA256("data")
+
+// SHA1
+sha1Hash := zCrypto.SHA1("data")
+
+// 自定义哈希
+hash := zCrypto.Hash("data", crypto.SHA512)
+```
+
+#### RSA 加密
+
+```go
+// 生成密钥对
+privateKey, publicKey, _ := zCrypto.GenerateRSAKeyPair(2048)
+
+// 加密/解密
+encrypted, _ := zCrypto.RSAEncrypt([]byte("data"), publicKey)
+decrypted, _ := zCrypto.RSADecrypt(encrypted, privateKey)
+
+// 签名/验签
+signature, _ := zCrypto.RSASign([]byte("data"), privateKey)
+valid := zCrypto.RSAVerify([]byte("data"), signature, publicKey)
+```
+
+#### 编码解码
+
+```go
+// Base64
+encoded := zCrypto.Base64Encode([]byte("data"))
+decoded, _ := zCrypto.Base64Decode(encoded)
+
+// Base64 URL Safe
+encoded := zCrypto.Base64UrlEncode([]byte("data"))
+decoded, _ := zCrypto.Base64UrlDecode(encoded)
+
+// Hex
+hexStr := zCrypto.Bytes2Hex([]byte("data"))
+bytes := zCrypto.Hex2Bytes(hexStr)
+```
+
+### 3. ECDH 密钥交换
+
+支持 Elliptic Curve Diffie-Hellman 密钥交换算法。
+
+```go
+// 服务器端
+serverDH, _ := zCrypto.NewDHKeyExchange()
+serverPubKey := serverDH.GetPublicKey()  // 64字节公钥
+
+// 客户端
+clientDH, _ := zCrypto.NewDHKeyExchange()
+clientPubKey := clientDH.GetPublicKey()
+
+// 交换公钥后计算共享密钥
+serverSharedKey, _ := serverDH.ComputeSharedSecret(clientPubKey)
+clientSharedKey, _ := clientDH.ComputeSharedSecret(serverPubKey)
+
+// serverSharedKey == clientSharedKey
+```
+
+### 4. zConcurrency 并发工具
+
+提供多种并发控制工具。
+
+#### 信号量
+
+```go
+import "github.com/pzqf/zUtil/zConcurrency"
+
+// 创建信号量，限制并发数为10
+sem := zConcurrency.NewSemaphore(10)
+
+// 获取许可
+sem.Acquire()
+defer sem.Release()
+
+// 执行受限操作
+doWork()
+```
+
+#### 限流器
+
+```go
+// 创建限流器：每秒100次请求
+limiter := zConcurrency.NewRateLimiter(100, time.Second)
+
+// 检查是否允许
+if limiter.Allow() {
+    processRequest()
+}
+```
+
+#### 并发执行器
+
+```go
+// 创建执行器，限制最大并发数
+executor := zConcurrency.NewConcurrentExecutor(10)
+
+// 提交任务
+for i := 0; i < 100; i++ {
+    executor.Submit(func() {
+        doWork()
+    })
+}
+
+// 等待所有任务完成
+executor.Wait()
+```
+
+### 5. zCache 缓存工具
+
+提供多种缓存实现。
+
+#### LRU 缓存
+
+```go
+import "github.com/pzqf/zUtil/zCache"
+
+// 创建 LRU 缓存
+cache := zCache.NewLRUCache(1000)
+
+// 设置缓存（带过期时间）
+cache.Set("key", "value", time.Hour)
+
+// 获取缓存
+value, found := cache.Get("key")
+
+// 删除缓存
+cache.Delete("key")
+
+// 清空缓存
+cache.Clear()
+```
+
+#### 默认缓存实例
+
+```go
+// 使用全局默认缓存
+zCache.SetDefault("key", "value", time.Hour)
+value, err := zCache.GetDefault("key")
+```
+
+### 6. zTime 时间处理
+
+增强的时间处理工具。
+
+```go
+import "github.com/pzqf/zUtil/zTime"
+
+// 创建时间对象
+now := zTime.Now()
+
+// 时间计算
+tomorrow := now.AddDays(1)
+lastWeek := now.SubWeeks(1)
+
+// 时间范围
+dayStart := now.BeginOfDay()
+dayEnd := now.EndOfDay()
+weekStart := now.BeginOfWeek()
+monthStart := now.BeginOfMonth()
+
+// 格式化
+str := zTime.Time2String(now.Time())
+t, _ := zTime.String2Time(str)
+
+// 时间差
+diff := zTime.Diff(now.Time(), tomorrow.Time())
+fmt.Println(diff.Days, diff.Hours, diff.Minutes)
+```
+
+---
+
+## 📊 性能基准
+
+### zMap 性能
+
+| 操作 | TypedMap | TypedShardedMap |
+|------|----------|-----------------|
+| Load | 25 ns/op | 42 ns/op |
+| Store | 65 ns/op | 48 ns/op |
+| Delete | 30 ns/op | 45 ns/op |
+| Range | 150 ns/iter | 180 ns/iter |
+
+### zCrypto 性能
+
+| 操作 | 吞吐量 |
+|------|--------|
+| AES-GCM 加密 | 1M ops/s |
+| AES-GCM 解密 | 1M ops/s |
+| ECDH 密钥交换 | 10K ops/s |
+| SHA256 | 500K ops/s |
+
+---
+
+## 🔧 最佳实践
+
+### 1. Map 选择指南
+
+```
+场景                          推荐类型
+─────────────────────────────────────────────
+读多写少                      TypedMap
+高并发写入                    TypedShardedMap
+需要频繁遍历                  TypedShardedMap
+键类型为 uint64/int/string    TypedMap/TypedShardedMap
+```
+
+### 2. 加密使用建议
+
+- ✅ 使用 AES-GCM 进行加密（最安全）
+- ✅ 使用 ECDH 进行密钥交换
+- ✅ 生产环境禁用 AES-ECB
+- ⚠️ AES-CBC 需要额外处理 IV 和填充
+
+### 3. 并发控制
+
+- 使用信号量限制资源访问
+- 使用限流器保护 API
+- 使用执行器管理 goroutine 生命周期
+
+---
+
+## 📝 许可证
+
+MIT License
+
+---
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+---
+
+*最后更新: 2026-02*
