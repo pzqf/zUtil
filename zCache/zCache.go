@@ -2,6 +2,7 @@ package zCache
 
 import (
 	"container/list"
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -31,26 +32,29 @@ type LRUCache struct {
 	cache         map[string]*Item
 	list          *list.List
 	capacity      int
-	expiration    time.Duration  // 默认过期时间
-	cleanupTicker *time.Ticker   // 清理过期项的定时器
-	stopChan      chan struct{}  // 停止清理的通道
+	expiration    time.Duration
+	cleanupTicker *time.Ticker
+	ctx           context.Context
+	cancelFunc    context.CancelFunc
 }
 
 // NewLRUCache 创建新的LRU缓存
 func NewLRUCache(capacity int, expiration time.Duration) *LRUCache {
 	if capacity <= 0 {
-		capacity = 100  // 默认容量
+		capacity = 100
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
 
 	cache := &LRUCache{
 		cache:      make(map[string]*Item),
 		list:       list.New(),
 		capacity:   capacity,
 		expiration: expiration,
-		stopChan:   make(chan struct{}),
+		ctx:        ctx,
+		cancelFunc: cancel,
 	}
 
-	// 启动定期清理过期项的goroutine
 	if expiration > 0 {
 		cache.cleanupTicker = time.NewTicker(expiration / 2)
 		go cache.cleanupLoop()
@@ -178,16 +182,19 @@ func (c *LRUCache) Keys() []string {
 	return keys
 }
 
-// Stop 停止缓存的清理功能
 func (c *LRUCache) Stop() {
+	c.cancelFunc()
 	c.mu.Lock()
 	if c.cleanupTicker != nil {
 		c.cleanupTicker.Stop()
 		c.cleanupTicker = nil
 	}
 	c.mu.Unlock()
+}
 
-	close(c.stopChan)
+func (c *LRUCache) Close() {
+	c.Stop()
+	c.Clear()
 }
 
 // removeOldest 移除最久未使用的项
@@ -205,27 +212,24 @@ func (c *LRUCache) remove(item *Item) {
 	delete(c.cache, item.Key)
 }
 
-// cleanupLoop 定期清理过期项的循环
 func (c *LRUCache) cleanupLoop() {
 	for {
 		select {
-		case <-c.stopChan:
+		case <-c.ctx.Done():
 			return
 		default:
-			// 检查cleanupTicker是否为nil
 			c.mu.Lock()
 			ticker := c.cleanupTicker
 			c.mu.Unlock()
-			
+
 			if ticker != nil {
 				select {
-				case <-c.stopChan:
+				case <-c.ctx.Done():
 					return
 				case <-ticker.C:
 					c.cleanup()
 				}
 			} else {
-				// 如果ticker为nil，休眠一段时间后再次检查
 				time.Sleep(time.Second)
 			}
 		}
@@ -372,36 +376,36 @@ func (c *SimpleCache) Keys() []string {
 	return keys
 }
 
-// TTLCache 基于TTL的缓存实现（自动清理过期项）
 type TTLCache struct {
 	*SimpleCache
 	cleanupTicker *time.Ticker
-	stopChan      chan struct{}
+	ctx           context.Context
+	cancelFunc    context.CancelFunc
 }
 
-// NewTTLCache 创建新的TTL缓存
 func NewTTLCache(expiration time.Duration) *TTLCache {
 	if expiration <= 0 {
-		expiration = time.Minute  // 默认过期时间
+		expiration = time.Minute
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
 
 	cache := &TTLCache{
 		SimpleCache:   NewSimpleCache(expiration),
 		cleanupTicker: time.NewTicker(expiration / 2),
-		stopChan:      make(chan struct{}),
+		ctx:           ctx,
+		cancelFunc:    cancel,
 	}
 
-	// 启动定期清理过期项的goroutine
 	go cache.cleanupLoop()
 
 	return cache
 }
 
-// cleanupLoop 定期清理过期项的循环
 func (c *TTLCache) cleanupLoop() {
 	for {
 		select {
-		case <-c.stopChan:
+		case <-c.ctx.Done():
 			return
 		case <-c.cleanupTicker.C:
 			c.cleanup()
@@ -409,7 +413,6 @@ func (c *TTLCache) cleanupLoop() {
 	}
 }
 
-// cleanup 清理过期项
 func (c *TTLCache) cleanup() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -422,10 +425,14 @@ func (c *TTLCache) cleanup() {
 	}
 }
 
-// Stop 停止缓存的清理功能
 func (c *TTLCache) Stop() {
+	c.cancelFunc()
 	c.cleanupTicker.Stop()
-	close(c.stopChan)
+}
+
+func (c *TTLCache) Close() {
+	c.Stop()
+	c.Clear()
 }
 
 // DefaultCache 默认缓存实例（使用LRUCache）

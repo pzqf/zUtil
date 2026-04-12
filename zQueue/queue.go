@@ -1,34 +1,22 @@
 package zQueue
 
-import (
-	"sync"
-)
+import "sync"
 
-// Node 队列节点结构
 type Node struct {
-	data interface{} // 节点数据
-	next *Node       // 下一个节点指针
+	data interface{}
+	next *Node
 }
 
-// Queue 队列结构
-// 实现了线程安全的队列，支持O(1)时间复杂度的入队和出队操作
 type Queue struct {
-	locker sync.Mutex // 互斥锁，保证线程安全
-	front  *Node      // 队首指针
-	rear   *Node      // 队尾指针
+	locker sync.Mutex
+	front  *Node
+	rear   *Node
 }
 
-// NewQueue 创建一个新的队列
 func NewQueue() *Queue {
-	return &Queue{
-		locker: sync.Mutex{},
-		front:  nil,
-		rear:   nil,
-	}
+	return &Queue{}
 }
 
-// Enqueue 向队列尾部添加元素
-// 时间复杂度: O(1)
 func (q *Queue) Enqueue(i interface{}) {
 	q.locker.Lock()
 	defer q.locker.Unlock()
@@ -36,15 +24,11 @@ func (q *Queue) Enqueue(i interface{}) {
 	if q.rear != nil {
 		q.rear.next = data
 	} else {
-		// 队列为空时，front也指向新节点
 		q.front = data
 	}
 	q.rear = data
 }
 
-// Dequeue 从队列头部移除并返回元素
-// 返回值: 元素数据和是否成功的标志
-// 时间复杂度: O(1)
 func (q *Queue) Dequeue() (interface{}, bool) {
 	q.locker.Lock()
 	defer q.locker.Unlock()
@@ -55,7 +39,6 @@ func (q *Queue) Dequeue() (interface{}, bool) {
 	data := q.front.data
 	q.front = q.front.next
 
-	// 如果队列为空，rear也置为nil
 	if q.front == nil {
 		q.rear = nil
 	}
@@ -63,9 +46,6 @@ func (q *Queue) Dequeue() (interface{}, bool) {
 	return data, true
 }
 
-// Peek 返回队列头部元素但不移除
-// 返回值: 元素数据和是否成功的标志
-// 时间复杂度: O(1)
 func (q *Queue) Peek() (interface{}, bool) {
 	q.locker.Lock()
 	defer q.locker.Unlock()
@@ -75,9 +55,6 @@ func (q *Queue) Peek() (interface{}, bool) {
 	return q.front.data, true
 }
 
-// Get 返回队列中所有元素的切片
-// 元素顺序为从队首到队尾
-// 时间复杂度: O(n)
 func (q *Queue) Get() []interface{} {
 	q.locker.Lock()
 	defer q.locker.Unlock()
@@ -90,17 +67,12 @@ func (q *Queue) Get() []interface{} {
 	return items
 }
 
-// IsEmpty 判断队列是否为空
-// 返回值: 如果队列为空返回true，否则返回false
-// 时间复杂度: O(1)
 func (q *Queue) IsEmpty() bool {
 	q.locker.Lock()
 	defer q.locker.Unlock()
 	return q.front == nil
 }
 
-// Empty 清空队列
-// 时间复杂度: O(1)
 func (q *Queue) Empty() {
 	q.locker.Lock()
 	defer q.locker.Unlock()
@@ -108,8 +80,6 @@ func (q *Queue) Empty() {
 	q.rear = nil
 }
 
-// Length 返回队列中元素的数量
-// 时间复杂度: O(n)
 func (q *Queue) Length() int {
 	q.locker.Lock()
 	defer q.locker.Unlock()
@@ -120,4 +90,101 @@ func (q *Queue) Length() int {
 		it = it.next
 	}
 	return n
+}
+
+type RingQueue struct {
+	mu       sync.Mutex
+	data     []interface{}
+	capacity int
+	head     int
+	tail     int
+	count    int
+}
+
+func NewRingQueue(capacity int) *RingQueue {
+	if capacity <= 0 {
+		capacity = 1024
+	}
+	return &RingQueue{
+		data:     make([]interface{}, capacity),
+		capacity: capacity,
+	}
+}
+
+func (rq *RingQueue) Enqueue(item interface{}) bool {
+	rq.mu.Lock()
+	defer rq.mu.Unlock()
+
+	if rq.count >= rq.capacity {
+		rq.grow()
+	}
+
+	rq.data[rq.tail] = item
+	rq.tail = (rq.tail + 1) % rq.capacity
+	rq.count++
+	return true
+}
+
+func (rq *RingQueue) Dequeue() (interface{}, bool) {
+	rq.mu.Lock()
+	defer rq.mu.Unlock()
+
+	if rq.count == 0 {
+		return nil, false
+	}
+
+	item := rq.data[rq.head]
+	rq.data[rq.head] = nil
+	rq.head = (rq.head + 1) % rq.capacity
+	rq.count--
+	return item, true
+}
+
+func (rq *RingQueue) Peek() (interface{}, bool) {
+	rq.mu.Lock()
+	defer rq.mu.Unlock()
+
+	if rq.count == 0 {
+		return nil, false
+	}
+	return rq.data[rq.head], true
+}
+
+func (rq *RingQueue) IsEmpty() bool {
+	rq.mu.Lock()
+	defer rq.mu.Unlock()
+	return rq.count == 0
+}
+
+func (rq *RingQueue) Len() int {
+	rq.mu.Lock()
+	defer rq.mu.Unlock()
+	return rq.count
+}
+
+func (rq *RingQueue) Cap() int {
+	return rq.capacity
+}
+
+func (rq *RingQueue) Clear() {
+	rq.mu.Lock()
+	defer rq.mu.Unlock()
+	rq.data = make([]interface{}, rq.capacity)
+	rq.head = 0
+	rq.tail = 0
+	rq.count = 0
+}
+
+func (rq *RingQueue) grow() {
+	newCapacity := rq.capacity * 2
+	newData := make([]interface{}, newCapacity)
+
+	for i := 0; i < rq.count; i++ {
+		newData[i] = rq.data[(rq.head+i)%rq.capacity]
+	}
+
+	rq.data = newData
+	rq.capacity = newCapacity
+	rq.head = 0
+	rq.tail = rq.count
 }
