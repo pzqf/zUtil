@@ -59,7 +59,7 @@ import (
 // - CompareAndSwap(key, oldValue, newValue interface{}) bool：比较并替换
 type Map struct {
 	sMap  sync.Map
-	count atomic.Value
+	count atomic.Int64
 }
 
 // NewMap 创建一个新的并发安全 Map
@@ -69,7 +69,6 @@ type Map struct {
 // - 不要对 Map 实例进行拷贝，可能导致并发问题
 func NewMap() *Map {
 	m := &Map{}
-	m.count.Store(int64(0))
 	return m
 }
 
@@ -92,8 +91,7 @@ func (m *Map) Load(key interface{}) (interface{}, bool) {
 // - 写操作比读操作慢，适合读多写少的场景
 func (m *Map) Store(key, value interface{}) {
 	if _, ok := m.sMap.Load(key); !ok {
-		current := m.count.Load().(int64)
-		m.count.Store(current + 1)
+		m.count.Add(1)
 	}
 	m.sMap.Store(key, value)
 }
@@ -105,10 +103,8 @@ func (m *Map) Store(key, value interface{}) {
 // - 如果键不存在，不会产生任何效果
 // - 不会返回被删除的值，如需返回请使用 LoadAndDelete
 func (m *Map) Delete(key interface{}) {
-	if _, ok := m.sMap.Load(key); ok {
-		m.sMap.Delete(key)
-		current := m.count.Load().(int64)
-		m.count.Store(current - 1)
+	if _, ok := m.sMap.LoadAndDelete(key); ok {
+		m.count.Add(-1)
 	}
 }
 
@@ -120,7 +116,7 @@ func (m *Map) Delete(key interface{}) {
 // - 返回的是瞬时值，可能在调用后立即改变
 // - 如果需要精确统计，建议在临界区中调用
 func (m *Map) Len() int64 {
-	return m.count.Load().(int64)
+	return m.count.Load()
 }
 
 // Range 遍历 Map 中的所有键值对
@@ -156,7 +152,7 @@ func (m *Map) Clear() {
 		m.sMap.Delete(v)
 	}
 
-	m.count.Store(int64(0))
+	m.count.Store(0)
 }
 
 // LoadOrStore 如果键不存在则存储值并返回该值，否则返回已存在的值
@@ -169,8 +165,7 @@ func (m *Map) Clear() {
 func (m *Map) LoadOrStore(key, value interface{}) (interface{}, bool) {
 	existing, loaded := m.sMap.LoadOrStore(key, value)
 	if !loaded {
-		current := m.count.Load().(int64)
-		m.count.Store(current + 1)
+		m.count.Add(1)
 	}
 	return existing, loaded
 }
@@ -186,8 +181,7 @@ func (m *Map) LoadOrStore(key, value interface{}) (interface{}, bool) {
 func (m *Map) LoadAndDelete(key interface{}) (interface{}, bool) {
 	value, loaded := m.sMap.LoadAndDelete(key)
 	if loaded {
-		current := m.count.Load().(int64)
-		m.count.Store(current - 1)
+		m.count.Add(-1)
 	}
 	return value, loaded
 }
@@ -203,8 +197,7 @@ func (m *Map) LoadAndDelete(key interface{}) (interface{}, bool) {
 func (m *Map) CompareAndDelete(key, oldValue interface{}) bool {
 	deleted := m.sMap.CompareAndDelete(key, oldValue)
 	if deleted {
-		current := m.count.Load().(int64)
-		m.count.Store(current - 1)
+		m.count.Add(-1)
 	}
 	return deleted
 }

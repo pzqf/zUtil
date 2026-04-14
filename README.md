@@ -3,772 +3,124 @@
 [![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat&logo=go)](https://golang.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-zUtil是一个Go语言的常用工具集，提供了多种实用的功能模块，帮助开发者提高开发效率。它设计为模块化、线程安全且性能优化的工具库，适用于各种Go项目。
-
-## 项目概述
-
-zUtil的设计理念是"让Go开发更简单"，通过提供一系列实用的工具函数和数据结构，帮助开发者快速构建高质量的应用。无论你是开发游戏服务器、Web应用还是其他类型的Go项目，zUtil都能为你提供所需的工具支持。
-
-### 为什么选择zUtil？
-
-- **模块化设计**：每个功能独立成模块，方便使用和维护
-- **线程安全**：大部分容器类型都实现了线程安全
-- **类型安全**：提供泛型实现，减少类型断言
-- **性能优化**：关键操作都经过性能优化
-- **全面的测试**：每个模块都有对应的测试文件
-- **易于扩展**：简单的接口设计，方便扩展新功能
+zUtil 是一个 Go 语言通用工具集，提供并发安全的数据结构、加密、缓存、配置管理等基础功能，适用于游戏服务器及各类 Go 项目。
 
 ## 项目结构
 
 ```
 zUtil/
-├── zCache/          # 缓存工具 - LRU、TTL等多种缓存实现
-├── zColor/          # 命令行颜色输出 - 支持多种颜色和样式
-├── zConfig/         # 配置管理 - 支持JSON、YAML、INI格式
-├── zConcurrency/    # 并发控制工具 - 工作池、信号量、限流器等
-├── zCrypto/         # 加密工具集合 - AES、RSA、哈希等
-├── zDataConv/       # 数据类型转换 - 各种类型之间的转换
-├── zFile/           # 文件操作 - 文件读写、目录管理等
-├── zGps/            # GPS坐标转换 - 支持多种坐标系转换
-├── zHashtable/      # 哈希表实现 - 支持动态扩容
-├── zKeyWordFilter/  # 关键词过滤 - DFA算法实现敏感词过滤
-├── zList/           # 线程安全链表 - 基于标准库的线程安全实现
-├── zMap/            # 扩展sync.Map - 提供类型安全的Map实现
-├── zQueue/          # 队列实现 - 线程安全的队列
-├── zRand/           # 随机数生成 - 各种随机数生成功能
-├── zReflect/        # 反射工具 - 结构体操作、方法调用等
-├── zStack/          # 栈实现 - 固定大小的栈操作
-├── zStr/            # 字符串处理 - 中文字符支持、命名转换等
-├── zTime/           # 时间处理 - 时间转换、格式化、区间计算等
-├── zTree/           # 树形结构生成 - 基于父子关系生成树形结构
-└── zUtils/          # 通用工具函数 - 目录操作、错误恢复等
+├── zMap/            # 并发安全 Map - TypedMap/TypedShardedMap（泛型）
+├── zCache/          # 缓存 - LRU/Simple/TTL 三种实现
+├── zConcurrency/    # 并发控制 - WorkerPool/Semaphore/RateLimiter/AtomicCounter
+├── zCrypto/         # 加密 - AES(CBC/GCM)/RSA/Hash/Base64
+├── zConfig/         # 配置管理 - JSON/YAML/INI 格式
+├── zKeyWordFilter/  # 敏感词过滤 - DFA 算法
+├── zList/           # 线程安全双向链表
+├── zQueue/          # 队列 - 链式队列 + 环形队列（自动扩容）
+├── zStr/            # 字符串处理 - 中文支持、命名转换、编辑距离
+├── zTime/           # 时间处理 - 时区转换、区间计算
+├── zFile/           # 文件操作 - 读写/复制/移动/目录管理
+├── zDataConv/       # 数据类型转换
+├── zReflect/        # 反射工具 - 字段操作/深拷贝/方法调用
+├── zRand/           # 随机数 - math/rand/v2 + crypto/rand
+├── zStack/          # 固定大小栈
+├── zHashtable/      # 哈希表 - 支持动态扩容
+├── zTree/           # 树形结构生成
+├── zGps/            # GPS 坐标系转换 - WGS84/GCJ02/BD09
+├── zColor/          # 终端颜色输出
+├── zError/          # 带错误码的错误类型
+└── zUtils/          # 通用工具 - 目录获取/错误恢复
 ```
 
-## 核心功能模块
+## 核心模块
 
-### 1. zCache - 缓存工具
+### zMap - 并发安全 Map
 
-提供多种缓存实现，包括LRU缓存、TTL缓存等，支持缓存过期和自动清理。
+基于 `sync.Map` 的扩展，提供类型安全的泛型实现。是 zUtil 中最核心、使用最广泛的模块。
 
-#### 主要特性
-- 支持LRU（最近最少使用）缓存策略
-- 支持TTL（生存时间）缓存
-- 线程安全的实现
-- 可自定义缓存大小和过期时间
-- 提供全局默认缓存实例
+#### 类型对比
+
+| 类型 | 适用场景 | 说明 |
+|------|----------|------|
+| `TypedMap[K, V]` | 读多写少 | 基于 sync.Map，零类型断言 |
+| `TypedShardedMap[K, V]` | 高并发写入 | 分片减少锁竞争 |
+| `Map` | 需要动态类型 | 基于 sync.Map + atomic 计数 |
+| `ShardedMap` | 高并发动态类型 | 分片版本 |
 
 #### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zCache"
-
-// 创建LRU缓存，容量100，默认过期时间1小时
-lruCache := zCache.NewLRUCache(100, time.Hour)
-
-// 设置缓存，指定过期时间
-lruCache.Set("key", "value", time.Hour)
-
-// 获取缓存
-value, err := lruCache.Get("key")
-
-// 删除缓存
-lruCache.Delete("key")
-
-// 清空缓存
-lruCache.Clear()
-
-// 使用全局默认缓存
-zCache.SetDefault("key", "value", time.Hour)
-value, err := zCache.GetDefault("key")
-```
-
-### 2. zColor - 命令行颜色输出
-
-命令行颜色输出工具，支持多种颜色和样式，使终端输出更加美观。
-
-#### 主要特性
-- 支持多种颜色（红、绿、蓝、黄等）
-- 支持粗体、下划线等样式
-- 跨平台兼容
-- 简单易用的API
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zColor"
-
-// 输出不同颜色的文本
-fmt.Println(zColor.Red("错误信息"))
-fmt.Println(zColor.Green("成功信息"))
-fmt.Println(zColor.Blue("提示信息"))
-fmt.Println(zColor.Yellow("警告信息"))
-
-// 输出带样式的文本
-fmt.Println(zColor.Bold(zColor.Green("加粗成功信息")))
-```
-
-### 3. zConfig - 配置管理
-
-配置管理工具，支持JSON、YAML和INI格式的配置文件加载和解析。
-
-#### 主要特性
-- 支持多种配置格式（JSON、YAML、INI）
-- 支持配置文件加载和保存
-- 支持嵌套配置访问
-- 支持配置解析为结构体
-- 支持默认值设置
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zConfig"
-
-// 创建配置实例
-config := zConfig.NewConfig()
-
-// 加载JSON配置文件
-err := config.LoadJSON("/path/to/config.json")
-
-// 加载YAML配置文件
-err := config.LoadYAML("/path/to/config.yaml")
-
-// 加载INI配置文件
-err := config.LoadINI("/path/to/config.ini")
-
-// 获取字符串配置
-value, err := config.GetString("server.port")
-
-// 获取整数配置
-port, err := config.GetInt("server.port")
-
-// 获取布尔配置
-enable, err := config.GetBool("server.enable")
-
-// 设置配置
-config.Set("server.timeout", 30)
-
-// 保存JSON配置文件
-err := config.SaveJSON("/path/to/config.json")
-
-// 将配置解析为结构体
-type ServerConfig struct {
-    Port   int  `json:"port"`
-    Enable bool `json:"enable"`
-}
-var serverConfig ServerConfig
-err = config.Unmarshal(&serverConfig)
-```
-
-### 4. zConcurrency - 并发控制工具
-
-并发控制工具，提供工作池、信号量、带超时的互斥锁、限流器等功能。
-
-#### 主要特性
-- 工作池：管理并发任务执行
-- 信号量：限制并发访问
-- 限流器：控制请求速率
-- 并发执行器：管理goroutine生命周期
-- 带超时的互斥锁：避免死锁
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zConcurrency"
-
-// 创建工作池
-pool := zConcurrency.NewWorkerPool(10, 100)
-pool.Start()
-
-for i := 0; i < 100; i++ {
-    pool.Submit(func() error {
-        // 执行任务
-        return nil
-    })
-}
-
-// 停止工作池
-pool.Stop()
-
-// 创建信号量，限制并发数为5
-sem := zConcurrency.NewSemaphore(5)
-sem.Acquire(1)
-// 执行受保护的代码
-sem.Release(1)
-
-// 创建限流器：每秒10个请求，最大突发20个
-limiter := zConcurrency.NewRateLimiter(10, 20)
-if limiter.Allow() {
-    // 处理请求
-}
-
-// 创建执行器，限制最大并发数
-executor := zConcurrency.NewConcurrentExecutor(10)
-
-// 提交任务
-for i := 0; i < 100; i++ {
-    executor.Submit(func() {
-        doWork()
-    })
-}
-
-// 等待所有任务完成
-executor.Wait()
-```
-
-### 5. zCrypto - 加密工具
-
-完整的加密工具集合，包含AES加密、RSA加密、哈希算法、编码等功能。
-
-#### 主要特性
-- AES加密：支持CBC、CFB、ECB、GCM等模式
-- RSA加密：支持密钥生成、加密、解密、签名
-- 哈希算法：支持MD5、SHA1、SHA256、SHA512
-- 编码：支持Base64、Hex编码
-- ECDH密钥交换：支持椭圆曲线Diffie-Hellman密钥交换
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zCrypto"
-
-// AES-GCM加密（推荐，更安全）
-key := []byte("1234567890123456")
-origData := []byte("Hello, World!")
-encrypted, _ := zCrypto.AESEncrypt(origData, key, nil, zCrypto.AESModeGCM)
-decrypted, _ := zCrypto.AESDecrypt(encrypted, key, nil, zCrypto.AESModeGCM)
-
-// 生成RSA密钥对
-privateKey, publicKey, err := zCrypto.GenerateRSAKeyPair(2048)
-
-// RSA加密
-encrypted, err := zCrypto.RSAEncrypt([]byte("Hello, World!"), publicKey)
-
-// RSA解密
-decrypted, err := zCrypto.RSADecrypt(encrypted, privateKey)
-
-// SHA256哈希
-sha256Hash := zCrypto.SHA256("Hello, World!")
-
-// Base64编码
-encoded := zCrypto.Base64Encode([]byte("Hello, World!"))
-decoded, _ := zCrypto.Base64Decode(encoded)
-
-// ECDH密钥交换
-serverDH, _ := zCrypto.NewDHKeyExchange()
-serverPubKey := serverDH.GetPublicKey()
-
-clientDH, _ := zCrypto.NewDHKeyExchange()
-clientPubKey := clientDH.GetPublicKey()
-
-serverSharedKey, _ := serverDH.ComputeSharedSecret(clientPubKey)
-clientSharedKey, _ := clientDH.ComputeSharedSecret(serverPubKey)
-```
-
-### 6. zDataConv - 数据类型转换
-
-数据类型转换工具，提供多种类型之间的转换函数，减少类型转换的代码复杂度。
-
-#### 主要特性
-- 字符串与整数、浮点数之间的转换
-- 支持错误处理
-- 提供简洁的API
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zDataConv"
-
-// 字符串转整数
-num, err := zDataConv.String2Int("123")
-
-// 整数转字符串
-str := zDataConv.Int2String(123)
-
-// 字符串转浮点数
-f, err := zDataConv.String2Float64("3.14")
-```
-
-### 7. zFile - 文件操作
-
-文件操作工具，提供文件读写、目录管理、文件复制等功能。
-
-#### 主要特性
-- 文件读写：支持读取、写入、追加文件内容
-- 文件操作：支持复制、移动、删除文件
-- 目录操作：支持创建、删除目录，列出目录内容
-- 递归操作：支持递归列出目录中的文件
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zFile"
-
-// 读取文件内容
-content, err := zFile.ReadFile("/path/to/file.txt")
-
-// 写入文件内容
-err = zFile.WriteFile("/path/to/file.txt", []byte("内容"), 0644)
-
-// 追加文件内容
-err = zFile.AppendFile("/path/to/file.txt", []byte("追加内容"))
-
-// 复制文件
-err = zFile.CopyFile("/path/to/src.txt", "/path/to/dst.txt")
-
-// 移动文件
-err = zFile.MoveFile("/path/to/src.txt", "/path/to/dst.txt")
-
-// 递归列出目录中的文件
-files, err := zFile.ListFilesRecursive("/path/to/dir")
-```
-
-### 8. zGps - GPS坐标转换
-
-GPS坐标转换工具，支持WGS-84、GCJ-02、BD-09坐标系之间的转换，以及距离计算。
-
-#### 主要特性
-- 支持多种坐标系转换
-- 支持距离计算
-- 高精度实现
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zGps"
-
-// WGS-84转GCJ-02
-lat, lon := zGps.Gps84ToGcj02(39.908823, 116.397470)
-
-// GCJ-02转BD-09
-lat, lon = zGps.Gcj02ToBd09(lat, lon)
-
-// 计算两点之间的距离
-distance := zGps.GetDistance(39.908823, 116.397470, 39.910000, 116.400000)
-```
-
-### 9. zHashtable - 哈希表实现
-
-哈希表实现，支持添加、获取、设置和删除操作，支持动态扩容以减少哈希冲突。
-
-#### 主要特性
-- 支持动态扩容
-- 支持基本的哈希表操作
-- 简单易用的API
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zHashtable"
-
-// 创建哈希表
-ht := zHashtable.NewHashTable()
-
-// 添加元素（当负载因子超过0.75时会自动扩容）
-ht.Add("key1", "value1")
-ht.Add("key2", 123)
-
-// 获取元素
-value, exists := ht.Get("key1")
-
-// 设置元素
-ht.Set("key1", "new value")
-
-// 删除元素
-ht.Remove("key2")
-```
-
-### 10. zKeyWordFilter - 关键词过滤
-
-关键词过滤工具，使用DFA（确定有限自动机）算法实现敏感词过滤，高效且准确。
-
-#### 主要特性
-- 使用DFA算法，高效过滤
-- 支持添加和移除关键词
-- 支持自定义替换字符
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zKeyWordFilter"
-
-// 创建过滤器
-filter := zKeyWordFilter.NewFilter()
-
-// 添加关键词
-filter.AddWord("敏感词")
-filter.AddWord("不良内容")
-
-// 过滤文本
-result := filter.Filter("这是一段包含敏感词的文本")
-// 输出: 这是一段包含***的文本
-```
-
-### 11. zList - 线程安全链表
-
-基于Go标准库container/list的线程安全链表，支持并发操作。
-
-#### 主要特性
-- 线程安全
-- 支持基本的链表操作
-- 兼容标准库list接口
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zList"
-
-// 创建链表
-list := zList.New()
-
-// 添加元素
-list.PushBack("item1")
-list.PushFront("item0")
-
-// 遍历链表
-list.Range(func(e *list.Element, value any) bool {
-    fmt.Println(value)
-    return true
-})
-```
-
-### 12. zMap - 扩展Map
-
-基于Go标准库sync.Map的扩展，提供额外的功能如计数和清空，以及类型安全的实现。
-
-#### 主要特性
-- 类型安全的Map实现
-- 分片Map，减少锁竞争
-- 支持基本的Map操作
-- 支持获取长度和清空操作
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zMap"
-
-// 创建类型安全的Map
-m := zMap.NewTypedMap[string, int]()
-
-// 存储元素（类型安全）
-m.Store("key1", 123)
-
-// 获取元素（类型安全，无需类型断言）
-value, exists := m.Load("key1")
-// value 是 int 类型，可以直接使用
-
-// 获取长度
-length := m.Len()
-
-// 清空Map
-m.Clear()
-
-// 创建分片Map（默认32个分片）
-shardedMap := zMap.NewShardedMap(32)
-
-// 创建类型安全的分片Map
-typedShardedMap := zMap.NewTypedShardedMap[string, int](32)
-```
-
-### 13. zQueue - 队列实现
-
-队列实现，支持线程安全的入队和出队操作，Dequeue操作已优化为O(1)时间复杂度。
-
-#### 主要特性
-- 线程安全
-- O(1)时间复杂度的出队操作
-- 支持基本的队列操作
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zQueue"
-
-// 创建队列
-queue := zQueue.NewQueue()
-
-// 入队
-queue.Enqueue("item1")
-queue.Enqueue("item2")
-
-// 出队（O(1)时间复杂度）
-item, exists := queue.Dequeue()
-
-// 获取队列长度
-length := queue.Length()
-
-// 查看队首元素
-peek, exists := queue.Peek()
-
-// 检查队列是否为空
-isEmpty := queue.IsEmpty()
-```
-
-### 14. zRand - 随机数生成
-
-随机数生成工具，包括随机整数、字符串等，提供多种随机数生成功能。
-
-#### 主要特性
-- 支持生成随机整数
-- 支持生成随机字符串
-- 支持自定义字符集
-- 线程安全
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zRand"
-
-// 生成0-9之间的随机整数
-randNum := zRand.RandN(10)
-
-// 生成指定区间的随机整数
-randInt := zRand.RandInterval(1, 100)
-
-// 生成随机字符串
-randStr := zRand.RandString(10)
-
-// 生成自定义字符集的随机字符串
-customStr := zRand.RandCustomString(10, "0123456789")
-```
-
-### 15. zReflect - 反射工具
-
-反射工具，提供结构体字段检查、方法调用、深拷贝比较等功能，简化反射操作。
-
-#### 主要特性
-- 支持获取和设置结构体字段值
-- 支持调用结构体方法
-- 支持深拷贝
-- 支持结构体比较
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zReflect"
-
-// 获取结构体字段值
-type User struct {
-    Name string
-    Age  int
-}
-user := User{Name: "张三", Age: 25}
-name, err := zReflect.GetFieldValue(user, "Name")
-
-// 设置结构体字段值
-zReflect.SetFieldValue(&user, "Age", 26)
-
-// 调用结构体方法
-result, err := zReflect.CallMethod(user, "MethodName", arg1, arg2)
-
-// 深拷贝
-newUser, err := zReflect.DeepCopy(user)
-```
-
-### 16. zStack - 栈实现
-
-栈实现，支持固定大小的栈操作，提供基本的栈功能。
-
-#### 主要特性
-- 固定大小的栈
-- 支持基本的栈操作
-- 线程安全
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zStack"
-
-// 创建栈
-stack := zStack.New(10)
-
-// 入栈
-stack.Push("item1")
-stack.Push("item2")
-
-// 出栈
-item, err := stack.Pop()
-
-// 查看栈顶元素
-peek, err := stack.Peek()
-```
-
-### 17. zStr - 字符串处理
-
-字符串处理工具，支持中文字符处理、命名转换、编辑距离计算等功能。
-
-#### 主要特性
-- 支持中文字符处理
-- 支持命名转换（驼峰、蛇形、短横线等）
-- 支持编辑距离计算
-- 支持随机字符串生成
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zStr"
-
-// 中文支持的子字符串提取
-substr := zStr.Substring("这是一段中文文本", 2, 4)
-
-// 命名转换
-camelCase := zStr.CamelCase("snake_case_string")
-snakeCase := zStr.SnakeCase("CamelCaseString")
-kebabCase := zStr.KebabCase("CamelCaseString")
-
-// 编辑距离计算
-distance := zStr.Distance("kitten", "sitting")
-
-// 随机字符串生成
-randStr := zStr.RandomString(10)
-```
-
-### 18. zTime - 时间处理
-
-时间处理工具，支持时间转换、格式化、区间计算等，提供丰富的时间操作功能。
-
-#### 主要特性
-- 支持时间转换（时间戳、字符串等）
-- 支持时间格式化
-- 支持时间区间计算（天、周、月等）
-- 支持时间差计算
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zTime"
-
-// 获取当前时间
-now := zTime.Now()
-
-// 时间转换
-seconds := zTime.Time2Seconds(now.Time())
-t := zTime.Seconds2Time(seconds)
-
-// 格式化时间
-str := zTime.Time2String(now.Time())
-
-// 获取当天开始和结束时间
-beginOfDay := now.BeginOfDay()
-endOfDay := now.EndOfDay()
-
-// 获取当周开始和结束时间
-beginOfWeek := now.BeginOfWeek()
-endOfWeek := now.EndOfWeek()
-
-// 时间计算
-tomorrow := now.AddDays(1)
-lastWeek := now.SubWeeks(1)
-
-// 时间差
-diff := zTime.Diff(now.Time(), tomorrow.Time())
-fmt.Println(diff.Days, diff.Hours, diff.Minutes)
-```
-
-### 19. zTree - 树形结构生成
-
-树形结构生成工具，基于父子关系生成树形结构，方便处理层级数据。
-
-#### 主要特性
-- 基于父子关系生成树形结构
-- 支持自定义节点类型
-- 提供树形结构遍历
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zTree"
-
-// 实现INode接口
-type Node struct {
-    ID       int
-    FatherID int
-    Data     string
-}
-
-func (n Node) GetId() int {
-    return n.ID
-}
-
-func (n Node) GetFatherId() int {
-    return n.FatherID
-}
-
-func (n Node) GetData() interface{} {
-    return n.Data
-}
-
-func (n Node) IsRoot() bool {
-    return n.FatherID == 0
-}
-
-// 生成树形结构
-nodes := []zTree.INode{
-    Node{ID: 1, FatherID: 0, Data: "根节点"},
-    Node{ID: 2, FatherID: 1, Data: "子节点1"},
-    Node{ID: 3, FatherID: 1, Data: "子节点2"},
-}
-
-trees := zTree.GenerateTree(nodes)
-```
-
-### 20. zUtils - 通用工具函数
-
-通用工具函数，包括目录操作、错误恢复等，提供各种实用的辅助函数。
-
-#### 主要特性
-- 提供当前目录获取
-- 提供错误恢复
-- 提供各种辅助函数
-
-#### 使用示例
-
-```go
-import "github.com/pzqf/zUtil/zUtils"
-
-// 获取当前目录
-dir, err := zUtils.GetCurrentDirectory()
-
-// 错误恢复
-defer func() {
-    if err := zUtils.Recover(); err != nil {
-        fmt.Println("发生错误:", err)
-    }
-}()
-```
-
-## 安装
-
-```bash
-go get -u github.com/pzqf/zUtil
-```
-
-## 快速开始
-
-### 基本使用示例
 
 ```go
 package main
 
 import (
     "fmt"
-    "github.com/pzqf/zUtil/zColor"
-    "github.com/pzqf/zUtil/zTime"
+    "github.com/pzqf/zUtil/zMap"
 )
 
 func main() {
-    // 输出带颜色的文本
-    fmt.Println(zColor.Green("Hello, zUtil!"))
-  
-    // 获取当前时间
-    now := zTime.Now()
-    fmt.Println("当前时间:", zTime.Time2String(now.Time()))
-    fmt.Println("本周开始时间:", zTime.Time2String(now.BeginOfWeek()))
+    // TypedMap - 泛型类型安全 Map（推荐）
+    tm := zMap.NewTypedMap[string, int]()
+    tm.Store("player_001", 100)
+    v, ok := tm.Load("player_001")  // v 是 int 类型，无需断言
+    fmt.Println(v, ok)  // 100 true
+
+    // TypedShardedMap - 高并发写入场景
+    tsm := zMap.NewTypedShardedMap[string, int](32)
+    tsm.Store("key1", 1)
+    tsm.Store("key2", 2)
+    fmt.Println(tsm.Len())  // 2
+
+    // Map - 动态类型 Map
+    m := zMap.NewMap()
+    m.Store("name", "Alice")
+    m.Store("age", 30)
+    fmt.Println(m.Len())  // 2
+    m.Range(func(key, value interface{}) bool {
+        fmt.Printf("%v: %v\n", key, value)
+        return true
+    })
+
+    // LoadOrStore - 原子性加载或存储
+    existing, loaded := tm.LoadOrStore("player_001", 200)
+    fmt.Println(existing, loaded)  // 100 true（已存在，不覆盖）
+
+    // LoadAndDelete - 原子性加载并删除
+    val, ok := tm.LoadAndDelete("player_001")
+    fmt.Println(val, ok)  // 100 true
+    fmt.Println(tm.Len())  // 0
 }
 ```
 
-### 高级使用示例
+#### 统一接口
 
-#### 缓存使用示例
+所有 Map 类型提供一致的接口：
+
+| 方法 | 说明 |
+|------|------|
+| `Load(key) (value, bool)` | 获取值 |
+| `Store(key, value)` | 存储值 |
+| `Delete(key)` | 删除值 |
+| `Len() int64` | 元素数量 |
+| `Range(f)` | 遍历所有元素 |
+| `Clear()` | 清空所有元素 |
+| `LoadOrStore(key, value) (value, bool)` | 加载或存储 |
+| `LoadAndDelete(key) (value, bool)` | 加载并删除 |
+| `CompareAndDelete(key, old) bool` | 比较并删除 |
+| `CompareAndSwap(key, old, new) bool` | 比较并替换 |
+
+---
+
+### zCache - 缓存
+
+提供 LRU、Simple、TTL 三种缓存实现。
+
+| 类型 | 淘汰策略 | 过期清理 | 适用场景 |
+|------|----------|----------|----------|
+| `LRUCache` | LRU | 支持 | 需要淘汰策略的缓存 |
+| `SimpleCache` | 无淘汰 | 支持 | 简单缓存 |
+| `TTLCache` | 无淘汰 | 自动清理 | 需要自动过期的缓存 |
+
+#### 使用示例
 
 ```go
 package main
@@ -780,28 +132,42 @@ import (
 )
 
 func main() {
-    // 创建LRU缓存
-    cache := zCache.NewLRUCache(100, time.Hour)
-    
-    // 设置缓存
-    cache.Set("user:1", map[string]interface{}{
-        "id":   1,
-        "name": "张三",
-        "age":  25,
-    }, time.Hour)
-    
-    // 获取缓存
-    user, err := cache.Get("user:1")
-    if err == nil {
-        fmt.Println("用户信息:", user)
-    }
-    
-    // 删除缓存
-    cache.Delete("user:1")
+    // LRU 缓存 - 容量100，过期时间5分钟
+    lru := zCache.NewLRUCache(100, 5*time.Minute)
+    lru.Set("user:1001", "Alice")
+    val, ok := lru.Get("user:1001")
+    fmt.Println(val, ok)  // Alice true
+
+    // TTL 缓存 - 自动过期清理
+    ttl := zCache.NewTTLCache(10 * time.Second)
+    ttl.Set("token", "abc123")
+    time.Sleep(11 * time.Second)
+    _, ok = ttl.Get("token")
+    fmt.Println(ok)  // false（已过期）
+
+    // 全局默认缓存
+    zCache.SetDefault("key1", "value1")
+    val, ok = zCache.GetDefault("key1")
+    fmt.Println(val, ok)  // value1 true
 }
 ```
 
-#### 并发控制示例
+---
+
+### zConcurrency - 并发控制
+
+提供工作池、信号量、限流器等并发控制工具。
+
+| 类型 | 用途 |
+|------|------|
+| `WorkerPool` | 工作池，管理并发任务 |
+| `Semaphore` | 信号量，限制并发访问 |
+| `RateLimiter` | 令牌桶限流器 |
+| `AtomicCounter` | 原子计数器 |
+| `MutexWithTimeout` | 带超时的互斥锁 |
+| `WaitGroupWithContext` | 带上下文的 WaitGroup |
+
+#### 使用示例
 
 ```go
 package main
@@ -813,101 +179,783 @@ import (
 )
 
 func main() {
-    // 创建工作池
-    pool := zConcurrency.NewWorkerPool(5, 100)
-    pool.Start()
-    
-    // 提交任务
-    for i := 0; i < 20; i++ {
-        taskID := i
-        pool.Submit(func() error {
-            fmt.Printf("执行任务 %d\n", taskID)
+    // WorkerPool - 工作池
+    pool := zConcurrency.NewWorkerPool(4, 100)  // 4个worker，队列100
+    for i := 0; i < 10; i++ {
+        task := zConcurrency.Task(func() error {
             time.Sleep(100 * time.Millisecond)
             return nil
         })
+        pool.AddTask(task)
     }
-    
-    // 等待所有任务完成
-    time.Sleep(2 * time.Second)
-    
-    // 停止工作池
     pool.Stop()
-    fmt.Println("所有任务执行完成")
+
+    // Semaphore - 信号量
+    sem := zConcurrency.NewSemaphore(3)  // 最多3个并发
+    sem.Acquire()
+    // ... 执行受限操作
+    sem.Release()
+
+    // RateLimiter - 令牌桶限流
+    limiter := zConcurrency.NewRateLimiter(100, 10)  // 100/s，桶容量10
+    if limiter.Allow() {
+        fmt.Println("请求通过")
+    }
+
+    // AtomicCounter - 原子计数器
+    counter := zConcurrency.NewAtomicCounter(0)
+    counter.Increment()
+    counter.Add(10)
+    fmt.Println(counter.Get())  // 11
 }
 ```
 
-## 性能基准
+---
 
-| 模块 | 操作 | 性能 |
+### zCrypto - 加密工具
+
+提供 AES/RSA/Hash/编码等加密功能。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zCrypto"
+)
+
+func main() {
+    // AES-GCM 加密（推荐）
+    key := zCrypto.GenerateAESKey(32)  // AES-256
+    plaintext := []byte("Hello, World!")
+    ciphertext, err := zCrypto.AESEncrypt(plaintext, key, zCrypto.AESModeGCM)
+    if err != nil {
+        panic(err)
+    }
+    decrypted, err := zCrypto.AESDecrypt(ciphertext, key, zCrypto.AESModeGCM)
+    fmt.Println(string(decrypted))  // Hello, World!
+
+    // RSA 密钥对
+    privateKey, publicKey := zCrypto.GenerateRSAKeyPair(2048)
+    encrypted, _ := zCrypto.RSAEncrypt(plaintext, publicKey)
+    decrypted, _ = zCrypto.RSADecrypt(encrypted, privateKey)
+    fmt.Println(string(decrypted))  // Hello, World!
+
+    // 哈希
+    hash := zCrypto.SHA256("password")
+    fmt.Println(hash)
+
+    // Base64
+    encoded := zCrypto.Base64Encode(plaintext)
+    decoded, _ := zCrypto.Base64Decode(encoded)
+    fmt.Println(string(decoded))  // Hello, World!
+}
+```
+
+---
+
+### zConfig - 配置管理
+
+支持 JSON/YAML/INI 三种格式的配置文件管理。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zConfig"
+)
+
+func main() {
+    cfg := zConfig.NewConfig()
+
+    // 加载 INI 配置
+    cfg.LoadINI("config.ini")
+
+    // 读取配置
+    host := cfg.GetString("Server.Host", "localhost")
+    port := cfg.GetInt("Server.Port", 8080)
+    debug := cfg.GetBool("Server.Debug", false)
+    fmt.Println(host, port, debug)
+
+    // 设置配置
+    cfg.Set("Server.Host", "0.0.0.0")
+
+    // 保存配置
+    cfg.SaveINI("config.ini")
+
+    // 结构体映射
+    type ServerConfig struct {
+        Host string `json:"host"`
+        Port int    `json:"port"`
+    }
+    var sc ServerConfig
+    cfg.Unmarshal(&sc)
+}
+```
+
+---
+
+### zKeyWordFilter - 敏感词过滤
+
+基于 DFA（确定有限自动机）算法的高效敏感词过滤。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zKeyWordFilter"
+)
+
+func main() {
+    // 创建过滤器
+    filter := zKeyWordFilter.NewFilter()
+    filter.AddWord("敏感词")
+    filter.AddWord("违规")
+    result := filter.Filter("这是一条包含敏感词的消息")
+    fmt.Println(result)  // 这是一条包含***的消息
+
+    // 使用全局默认过滤器
+    zKeyWordFilter.InitDefaultFilter()
+    zKeyWordFilter.AddWord("违禁")
+    zKeyWordFilter.AddWord("禁止")
+    result = zKeyWordFilter.Filter("违禁内容禁止传播")
+    fmt.Println(result)  // **内容**传播
+
+    // 从文件加载敏感词（每行一个词）
+    zKeyWordFilter.ParseFromFile("sensitive_words.txt")
+}
+```
+
+---
+
+### zList - 线程安全双向链表
+
+基于 `container/list` 的线程安全封装。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zList"
+)
+
+func main() {
+    list := zList.New()
+    list.PushBack("first")
+    list.PushBack("second")
+    list.PushFront("zero")
+
+    fmt.Println(list.Len())  // 3
+
+    // 遍历
+    list.Range(func(e *list.Element, value any) bool {
+        fmt.Println(value)
+        return true
+    })
+    // 输出: zero first second
+
+    // 获取首尾元素
+    front := list.Front()
+    fmt.Println(front.Value)  // zero
+}
+```
+
+---
+
+### zQueue - 队列
+
+提供链式队列和环形队列两种实现。
+
+| 类型 | 特点 | 适用场景 |
+|------|------|----------|
+| `Queue` | 链式队列，线程安全 | 通用队列 |
+| `RingQueue` | 环形队列，自动扩容 | 高性能固定大小场景 |
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zQueue"
+)
+
+func main() {
+    // 链式队列
+    q := zQueue.NewQueue()
+    q.Enqueue("first")
+    q.Enqueue("second")
+    q.Enqueue("third")
+    fmt.Println(q.Length())  // 3
+
+    val, _ := q.Dequeue()
+    fmt.Println(val)  // first
+
+    val, _ = q.Peek()
+    fmt.Println(val)  // second
+
+    // 环形队列
+    rq := zQueue.NewRingQueue(1024)
+    rq.Enqueue("item1")
+    rq.Enqueue("item2")
+    fmt.Println(rq.Len(), rq.Cap())  // 2 1024
+
+    val, _ = rq.Dequeue()
+    fmt.Println(val)  // item1
+}
+```
+
+---
+
+### zStr - 字符串处理
+
+提供丰富的字符串处理函数，完整支持中文。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zStr"
+)
+
+func main() {
+    // 中文子字符串
+    s := "你好，世界！"
+    fmt.Println(zStr.Substring(s, 0, 2))  // 你好
+
+    // 命名转换
+    fmt.Println(zStr.CamelCase("user_name"))   // userName
+    fmt.Println(zStr.SnakeCase("UserName"))     // user_name
+    fmt.Println(zStr.KebabCase("UserName"))     // user-name
+
+    // 中文反转
+    fmt.Println(zStr.Reverse("你好世界"))  // 界世好你
+
+    // 编辑距离（支持中文）
+    fmt.Println(zStr.Distance("你好", "你们好"))  // 1
+
+    // 随机字符串
+    fmt.Println(zStr.Random(16, ""))  // 随机16位字母数字
+    fmt.Println(zStr.RandomDigit(6))  // 随机6位数字
+
+    // 检查
+    fmt.Println(zStr.IsEmpty("  "))       // true
+    fmt.Println(zStr.IsAlpha("Hello"))    // true
+    fmt.Println(zStr.IsNumeric("123"))    // true
+    fmt.Println(zStr.IsAlphanumeric("abc123"))  // true
+
+    // 首字母操作
+    fmt.Println(zStr.Capitalize("hello"))    // Hello
+    fmt.Println(zStr.Decapitalize("Hello"))  // hello
+
+    // 填充
+    fmt.Println(zStr.PadLeft("42", 5, "0"))  // 00042
+    fmt.Println(zStr.PadRight("42", 5, "0")) // 42000
+
+    // 截断
+    fmt.Println(zStr.Truncate("你好世界再见", 3, "..."))  // 你好世...
+}
+```
+
+---
+
+### zTime - 时间处理
+
+默认中国时区（CST, UTC+8），支持时间区间计算。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "time"
+    "github.com/pzqf/zUtil/zTime"
+)
+
+func main() {
+    // 当前时间
+    now := zTime.Now()
+    fmt.Println(now.Time())
+
+    // 从 time.Time 创建
+    t := time.Date(2026, 4, 14, 15, 30, 0, 0, time.UTC)
+    zt := zTime.New(t)
+    fmt.Println(zt.Time())
+
+    // 从时间戳创建
+    zt = zTime.NewFromSeconds(1713090600)
+
+    // 从字符串创建
+    zt = zTime.NewFromString("2006-01-02 15:04:05", "2026-04-14 15:30:00")
+
+    // 时间区间
+    fmt.Println(now.BeginOfDay())    // 当天 00:00:00
+    fmt.Println(now.EndOfDay())      // 当天 23:59:59
+    fmt.Println(now.BeginOfWeek())   // 本周一 00:00:00
+    fmt.Println(now.EndOfWeek())     // 本周日 23:59:59
+    fmt.Println(now.BeginOfMonth())  // 本月1日 00:00:00
+    fmt.Println(now.EndOfMonth())    // 本月最后一天 23:59:59
+    fmt.Println(now.BeginOfYear())   // 今年1月1日 00:00:00
+    fmt.Println(now.EndOfYear())     // 今年12月31日 23:59:59
+
+    // 时区设置
+    zt.SetZone("EST", -5)  // 美东时间
+
+    // 时间转换
+    seconds := zTime.Time2Seconds(now.Time())
+    str := zTime.Time2String(now.Time())
+    fmt.Println(seconds, str)
+}
+```
+
+---
+
+### zFile - 文件操作
+
+提供丰富的文件和目录操作函数。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zFile"
+)
+
+func main() {
+    // 文件读写
+    zFile.WriteFile("test.txt", []byte("Hello"))
+    data, _ := zFile.ReadFile("test.txt")
+    fmt.Println(string(data))  // Hello
+
+    // 追加写入
+    zFile.AppendFile("test.txt", []byte(" World"))
+
+    // 目录操作
+    zFile.CreateDirAll("./data/logs")
+    files, _ := zFile.ListFiles("./data")
+
+    // 文件信息
+    size, _ := zFile.GetFileSize("test.txt")
+    modTime, _ := zFile.GetFileModTime("test.txt")
+    exists := zFile.Exists("test.txt")
+    isDir := zFile.IsDir("./data")
+
+    fmt.Println(size, modTime, exists, isDir)
+
+    // 复制/移动
+    zFile.CopyFile("test.txt", "test_copy.txt")
+    zFile.MoveFile("test_copy.txt", "test_moved.txt")
+}
+```
+
+---
+
+### zDataConv - 数据类型转换
+
+提供常用数据类型之间的转换函数。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zDataConv"
+)
+
+func main() {
+    // 字符串转数字
+    i := zDataConv.String2Int("123")
+    i64 := zDataConv.String2Int64("9999999999")
+    f32 := zDataConv.String2Float32("3.14")
+    f64 := zDataConv.String2Float64("3.141592653589793")
+    fmt.Println(i, i64, f32, f64)
+
+    // 数字转字符串
+    s := zDataConv.Int2String(123)
+    s64 := zDataConv.Int642String(9999999999)
+    fmt.Println(s, s64)
+
+    // 字节和字符串互转（零拷贝）
+    bytes := zDataConv.String2Byte("hello")
+    str := zDataConv.Byte2String(bytes)
+    fmt.Println(str)
+
+    // Base64 编解码
+    encoded := zDataConv.Base64Encode("hello")
+    fmt.Println(encoded)
+
+    // URL 编解码
+    urlEncoded := zDataConv.UrlEncode("hello world")
+    fmt.Println(urlEncoded)
+}
+```
+
+---
+
+### zReflect - 反射工具
+
+提供反射相关的工具函数，简化反射操作。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zReflect"
+)
+
+type User struct {
+    Name string `json:"name"`
+    Age  int    `json:"age"`
+}
+
+func (u *User) Greet() string {
+    return "Hello, " + u.Name
+}
+
+func main() {
+    user := &User{Name: "Alice", Age: 30}
+
+    // 获取字段值
+    name, _ := zReflect.GetFieldValue(user, "Name")
+    fmt.Println(name)  // Alice
+
+    // 设置字段值
+    zReflect.SetFieldValue(user, "Age", 31)
+
+    // 获取结构体字段标签
+    tags, _ := zReflect.GetStructFieldTags(user, "json")
+    fmt.Println(tags)  // map[Name:name Age:age]
+
+    // 调用方法
+    result, _ := zReflect.CallMethod(user, "Greet")
+    fmt.Println(result[0].String())  // Hello, Alice
+
+    // 深拷贝
+    copy, _ := zReflect.DeepCopy(user)
+    fmt.Println(copy.(*User).Name)  // Alice
+
+    // 转为 Map
+    m, _ := zReflect.ToMapWithTags(user, "json")
+    fmt.Println(m)  // map[name:Alice age:31]
+}
+```
+
+---
+
+### zRand - 随机数
+
+提供基于 `math/rand/v2` 和 `crypto/rand` 的随机数生成。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zRand"
+)
+
+func main() {
+    // 普通随机数
+    n := zRand.RandN(100)          // [0, 100)
+    interval := zRand.RandInterval(10, 20)  // [10, 20]
+    fmt.Println(n, interval)
+
+    // 随机字符串
+    s := zRand.RandString(16)      // 16位随机字符串
+    fmt.Println(s)
+
+    // 自定义字符集
+    custom := zRand.RandCustomString(8, "ABCDEF0123456789")
+    fmt.Println(custom)  // 8位16进制字符串
+
+    // 安全随机数（crypto/rand）
+    secureInt, _ := zRand.SecureInt(100)
+    secureStr, _ := zRand.SecureString(32)
+    secureBytes, _ := zRand.SecureBytes(16)
+    fmt.Println(secureInt, secureStr, secureBytes)
+}
+```
+
+---
+
+### zStack - 固定大小栈
+
+固定大小的栈实现。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zStack"
+)
+
+func main() {
+    stack := zStack.New(10)  // 容量10
+    stack.Push("first")
+    stack.Push("second")
+
+    val, _ := stack.Pop()
+    fmt.Println(val)  // second
+
+    val, _ = stack.Peek()
+    fmt.Println(val)  // first
+
+    fmt.Println(stack.IsEmpty())  // false
+}
+```
+
+---
+
+### zHashtable - 哈希表
+
+支持动态扩容的哈希表实现。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zHashtable"
+)
+
+func main() {
+    ht := zHashtable.NewHashTable()
+    ht.Add("key1", "value1")
+    ht.Add("key2", "value2")
+
+    val, _ := ht.Get("key1")
+    fmt.Println(val)  // value1
+
+    ht.Set("key1", "new_value")
+    val, _ = ht.Get("key1")
+    fmt.Println(val)  // new_value
+
+    fmt.Println(ht.Size())  // 2
+    ht.Remove("key2")
+    fmt.Println(ht.Size())  // 1
+}
+```
+
+---
+
+### zTree - 树形结构
+
+从扁平数据生成树形结构。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zTree"
+)
+
+type MenuItem struct {
+    ID       int
+    ParentID int
+    Name     string
+}
+
+func (m MenuItem) GetId() int        { return m.ID }
+func (m MenuItem) GetFatherId() int  { return m.ParentID }
+func (m MenuItem) GetData() interface{} { return m }
+func (m MenuItem) IsRoot() bool      { return m.ParentID == 0 }
+
+func main() {
+    items := []zTree.INode{
+        MenuItem{ID: 1, ParentID: 0, Name: "Root"},
+        MenuItem{ID: 2, ParentID: 1, Name: "Child1"},
+        MenuItem{ID: 3, ParentID: 1, Name: "Child2"},
+    }
+    trees := zTree.GenerateTree(items)
+    fmt.Println(len(trees))  // 1（一个根节点）
+    fmt.Println(len(trees[0].Children))  // 2（两个子节点）
+}
+```
+
+---
+
+### zGps - GPS 坐标系转换
+
+支持 WGS84/GCJ02/BD09 三种坐标系之间的转换。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zGps"
+)
+
+func main() {
+    // WGS84 转 GCJ02（GPS坐标转国测局坐标）
+    lng, lat := zGps.Gps84ToGcj02(116.397428, 39.90923)
+    fmt.Printf("GCJ02: %.6f, %.6f\n", lng, lat)
+
+    // GCJ02 转 BD09（国测局坐标转百度坐标）
+    lng, lat = zGps.Gcj02ToBd09(lng, lat)
+    fmt.Printf("BD09: %.6f, %.6f\n", lng, lat)
+
+    // 计算两点距离（米）
+    distance := zGps.GetDistance(39.90923, 116.397428, 39.90950, 116.39780)
+    fmt.Printf("距离: %.2f 米\n", distance)
+}
+```
+
+---
+
+### zColor - 终端颜色输出
+
+提供终端彩色文本输出。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zColor"
+)
+
+func main() {
+    fmt.Println(zColor.Green("成功信息"))
+    fmt.Println(zColor.Red("错误信息"))
+    fmt.Println(zColor.Yellow("警告信息"))
+    fmt.Println(zColor.Cyan("提示信息"))
+    fmt.Println(zColor.Blue("调试信息"))
+    fmt.Println(zColor.Purple("特殊信息"))
+}
+```
+
+---
+
+### zError - 带错误码的错误类型
+
+提供带错误码的错误类型，便于错误分类和处理。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zError"
+)
+
+func main() {
+    // 创建带错误码的错误
+    err := zError.NewWithCode(404, "资源未找到")
+    fmt.Println(err.GetCode())     // 404
+    fmt.Println(err.GetMessage())  // 资源未找到
+    fmt.Println(err.Error())       // 资源未找到
+
+    // 格式化创建
+    err2 := zError.Errorf("用户 %s 不存在", "Alice")
+    fmt.Println(err2.Error())  // 用户 Alice 不存在
+}
+```
+
+---
+
+### zUtils - 通用工具
+
+提供目录获取和错误恢复等通用工具。
+
+#### 使用示例
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/pzqf/zUtil/zUtils"
+)
+
+func main() {
+    // 获取当前工作目录
+    dir, _ := zUtils.GetCurrentDirectory()
+    fmt.Println(dir)
+
+    // 错误恢复
+    func() {
+        defer func() {
+            if err := zUtils.Recover(); err != nil {
+                fmt.Println("恢复错误:", err)
+            }
+        }()
+        panic("something went wrong")
+    }()
+}
+```
+
+## 依赖
+
+| 依赖 | 版本 | 用途 |
 |------|------|------|
-| zCrypto | AES-GCM 加密 | 1M ops/s |
-| zCrypto | AES-GCM 解密 | 1M ops/s |
-| zCrypto | ECDH 密钥交换 | 10K ops/s |
-| zCrypto | SHA256 | 500K ops/s |
-| zMap | TypedMap Load | 25 ns/op |
-| zMap | TypedMap Store | 65 ns/op |
-| zMap | TypedShardedMap Load | 42 ns/op |
-| zMap | TypedShardedMap Store | 48 ns/op |
-| zQueue | Enqueue | 30 ns/op |
-| zQueue | Dequeue | 25 ns/op |
+| `gopkg.in/ini.v1` | v1.67.0 | INI 文件解析 |
+| `gopkg.in/yaml.v3` | v3.0.1 | YAML 文件解析 |
+| `github.com/stretchr/testify` | v1.11.1 | 测试断言 |
 
-## 最佳实践
+## 已修复的问题
 
-### zMap 使用建议
+| 版本 | 问题 | 修复方案 |
+|------|------|----------|
+| v0.0.2 | zMap.Map 计数竞态 | `atomic.Value` → `atomic.Int64`，使用 `Add()` 替代 read-modify-write |
+| v0.0.2 | zTime.New 忽略参数 | `time.Now()` → 使用传入参数 `t` |
+| v0.0.2 | zStr.Distance 不支持中文 | 按字节索引 → `[]rune` 按字符索引 |
+| v0.0.2 | zStr.Random 使用已废弃 rand.Seed | `math/rand` + `rand.Seed` → `math/rand/v2` |
+| v0.0.2 | zList.Range 未加锁 | 添加 `locker.Lock()/Unlock()` |
+| v0.0.2 | zKeyWordFilter DefaultFilter 未初始化保护 | 添加 `ensureDefaultFilter()` 懒初始化 |
+| v0.0.2 | zQueue.Queue.Length() O(n) | 添加 `count` 字段，Enqueue/Dequeue/Empty 维护 |
 
-| 场景 | 推荐类型 |
-|------|----------|
-| 读多写少 | TypedMap |
-| 高并发写入 | TypedShardedMap |
-| 需要频繁遍历 | TypedShardedMap |
-| 键类型为 uint64/int/string | TypedMap/TypedShardedMap |
+## 安装
 
-### zCrypto 使用建议
-
-- ✅ 使用 AES-GCM 进行加密（最安全）
-- ✅ 使用 ECDH 进行密钥交换
-- ✅ 生产环境禁用 AES-ECB
-- ⚠️ AES-CBC 需要额外处理 IV 和填充
-
-### zConcurrency 使用建议
-
-- ✅ 使用信号量限制资源访问
-- ✅ 使用限流器保护 API
-- ✅ 使用执行器管理 goroutine 生命周期
-- ⚠️ 合理设置工作池大小，避免过度创建 goroutine
-
-## 项目特点
-
-1. **模块化设计**：每个功能独立成模块，方便使用和维护
-2. **线程安全**：大部分容器类型都实现了线程安全
-3. **易于扩展**：简单的接口设计，方便扩展新功能
-4. **全面的测试**：每个模块都有对应的测试文件
-5. **类型安全**：提供泛型实现，减少类型断言
-6. **性能优化**：关键操作都经过性能优化
-7. **跨平台兼容**：支持Windows、Linux、macOS等平台
-8. **丰富的文档**：详细的使用说明和示例
-
-## 贡献
-
-欢迎提交Issue和Pull Request来帮助改进这个项目。
-
-### 贡献指南
-
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开 Pull Request
+```bash
+go get github.com/pzqf/zUtil
+```
 
 ## 许可证
 
 MIT License
 
-## 联系方式
-
-- 项目主页：https://github.com/pzqf/zUtil
-- 问题反馈：https://github.com/pzqf/zUtil/issues
-
 ---
 
-*最后更新: 2026-03-31*
+*最后更新: 2026-04-14*

@@ -132,11 +132,19 @@ func InitDefaultFilter() {
 	DefaultFilter = NewFilter()
 }
 
+func ensureDefaultFilter() {
+	if DefaultFilter == nil {
+		DefaultFilter = NewFilter()
+	}
+}
+
 func AddWord(str string) {
+	ensureDefaultFilter()
 	DefaultFilter.AddWord(str)
 }
 
 func ParseFromFile(filename string) error {
+	ensureDefaultFilter()
 	fp, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -159,9 +167,11 @@ func ParseFromFile(filename string) error {
 }
 
 func PrintDefault() {
+	ensureDefaultFilter()
 	DefaultFilter.Print()
 }
 
 func Filter(content string) string {
+	ensureDefaultFilter()
 	return DefaultFilter.Filter(content)
 }

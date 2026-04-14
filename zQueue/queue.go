@@ -11,6 +11,7 @@ type Queue struct {
 	locker sync.Mutex
 	front  *Node
 	rear   *Node
+	count  int
 }
 
 func NewQueue() *Queue {
@@ -27,6 +28,7 @@ func (q *Queue) Enqueue(i interface{}) {
 		q.front = data
 	}
 	q.rear = data
+	q.count++
 }
 
 func (q *Queue) Dequeue() (interface{}, bool) {
@@ -42,6 +44,7 @@ func (q *Queue) Dequeue() (interface{}, bool) {
 	if q.front == nil {
 		q.rear = nil
 	}
+	q.count--
 
 	return data, true
 }
@@ -78,18 +81,13 @@ func (q *Queue) Empty() {
 	defer q.locker.Unlock()
 	q.front = nil
 	q.rear = nil
+	q.count = 0
 }
 
 func (q *Queue) Length() int {
 	q.locker.Lock()
 	defer q.locker.Unlock()
-	n := 0
-	it := q.front
-	for it != nil {
-		n++
-		it = it.next
-	}
-	return n
+	return q.count
 }
 
 type RingQueue struct {

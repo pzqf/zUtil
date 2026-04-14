@@ -32,7 +32,7 @@ func Now() *ZTime {
 }
 func New(t time.Time) *ZTime {
 	zt := ZTime{
-		t: time.Now(),
+		t: t,
 	}
 	zt.loc = zt.GetZone()
 	return &zt

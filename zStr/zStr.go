@@ -3,10 +3,9 @@ package zStr
 import (
 	"bytes"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"regexp"
 	"strings"
-	"time"
 	"unicode"
 )
 
@@ -303,15 +302,14 @@ func Random(length int, charset string) string {
 	if length <= 0 {
 		return ""
 	}
-	
+
 	if charset == "" {
 		charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	}
-	
-	rand.Seed(time.Now().UnixNano())
+
 	var result bytes.Buffer
 	for i := 0; i < length; i++ {
-		result.WriteByte(charset[rand.Intn(len(charset))])
+		result.WriteByte(charset[rand.IntN(len(charset))])
 	}
 	return result.String()
 }
@@ -477,40 +475,39 @@ func Decapitalize(str string) string {
 	return string(chars)
 }
 
-// Distance 计算编辑距离（Levenshtein距离）
+// Distance 计算编辑距离（Levenshtein距离，支持中文）
 func Distance(str1, str2 string) int {
-	m := len(str1)
-	n := len(str2)
-	
-	// 创建二维数组
+	r1 := []rune(str1)
+	r2 := []rune(str2)
+	m := len(r1)
+	n := len(r2)
+
 	dp := make([][]int, m+1)
 	for i := range dp {
 		dp[i] = make([]int, n+1)
 	}
-	
-	// 初始化
+
 	for i := 0; i <= m; i++ {
 		dp[i][0] = i
 	}
 	for j := 0; j <= n; j++ {
 		dp[0][j] = j
 	}
-	
-	// 计算编辑距离
+
 	for i := 1; i <= m; i++ {
 		for j := 1; j <= n; j++ {
 			cost := 0
-			if str1[i-1] != str2[j-1] {
+			if r1[i-1] != r2[j-1] {
 				cost = 1
 			}
 			dp[i][j] = min(
-				dp[i-1][j]+1,      // 删除
-				dp[i][j-1]+1,      // 插入
-				dp[i-1][j-1]+cost, // 替换
+				dp[i-1][j]+1,
+				dp[i][j-1]+1,
+				dp[i-1][j-1]+cost,
 			)
 		}
 	}
-	
+
 	return dp[m][n]
 }
 

@@ -46,6 +46,8 @@ func (l *List) Len() int {
 }
 
 func (l *List) Range(f func(e *list.Element, value any) bool) {
+	l.locker.Lock()
+	defer l.locker.Unlock()
 	e := l.list.Front()
 	for {
 		if e == nil {
