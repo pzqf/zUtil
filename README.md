@@ -13,7 +13,6 @@ zUtil/
 ├── zCache/          # 缓存 - LRU/Simple/TTL 三种实现
 ├── zConcurrency/    # 并发控制 - WorkerPool/Semaphore/RateLimiter/AtomicCounter
 ├── zCrypto/         # 加密 - AES(CBC/GCM)/RSA/Hash/Base64
-├── zConfig/         # 配置管理 - JSON/YAML/INI 格式
 ├── zKeyWordFilter/  # 敏感词过滤 - DFA 算法
 ├── zList/           # 线程安全双向链表
 ├── zQueue/          # 队列 - 链式队列 + 环形队列（自动扩容）
@@ -251,50 +250,6 @@ func main() {
     encoded := zCrypto.Base64Encode(plaintext)
     decoded, _ := zCrypto.Base64Decode(encoded)
     fmt.Println(string(decoded))  // Hello, World!
-}
-```
-
----
-
-### zConfig - 配置管理
-
-支持 JSON/YAML/INI 三种格式的配置文件管理。
-
-#### 使用示例
-
-```go
-package main
-
-import (
-    "fmt"
-    "github.com/pzqf/zUtil/zConfig"
-)
-
-func main() {
-    cfg := zConfig.NewConfig()
-
-    // 加载 INI 配置
-    cfg.LoadINI("config.ini")
-
-    // 读取配置
-    host := cfg.GetString("Server.Host", "localhost")
-    port := cfg.GetInt("Server.Port", 8080)
-    debug := cfg.GetBool("Server.Debug", false)
-    fmt.Println(host, port, debug)
-
-    // 设置配置
-    cfg.Set("Server.Host", "0.0.0.0")
-
-    // 保存配置
-    cfg.SaveINI("config.ini")
-
-    // 结构体映射
-    type ServerConfig struct {
-        Host string `json:"host"`
-        Port int    `json:"port"`
-    }
-    var sc ServerConfig
-    cfg.Unmarshal(&sc)
 }
 ```
 

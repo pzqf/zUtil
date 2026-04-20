@@ -2,11 +2,17 @@ package zQueue
 
 import "sync"
 
+// Node 链表节点
+//
+// Deprecated: 使用 RingQueue 替代，性能更优
 type Node struct {
 	data interface{}
 	next *Node
 }
 
+// Queue 基于链表的队列
+//
+// Deprecated: 使用 RingQueue 替代，基于环形缓冲区实现，性能更优
 type Queue struct {
 	locker sync.Mutex
 	front  *Node
@@ -90,6 +96,7 @@ func (q *Queue) Length() int {
 	return q.count
 }
 
+// RingQueue 基于环形缓冲区的队列，性能优于链表实现
 type RingQueue struct {
 	mu       sync.Mutex
 	data     []interface{}
