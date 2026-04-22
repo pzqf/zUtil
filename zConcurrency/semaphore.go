@@ -5,34 +5,30 @@ import (
 	"sync"
 )
 
-// Semaphore 信号量结构体
 type Semaphore struct {
 	permits int64
 	mu      sync.Mutex
-	cond    *sync.Cond
+	ch      chan struct{}
 }
 
-// NewSemaphore 创建新的信号量
 func NewSemaphore(permits int64) *Semaphore {
-	s := &Semaphore{
+	return &Semaphore{
 		permits: permits,
+		ch:      make(chan struct{}, 1),
 	}
-	s.cond = sync.NewCond(&s.mu)
-	return s
 }
 
-// Acquire 获取n个信号量许可
 func (s *Semaphore) Acquire(n int64) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	for s.permits < n {
-		s.cond.Wait()
+		s.mu.Unlock()
+		<-s.ch
+		s.mu.Lock()
 	}
 	s.permits -= n
+	s.mu.Unlock()
 }
 
-// AcquireWithContext 获取n个信号量许可（带超时）
 func (s *Semaphore) AcquireWithContext(ctx context.Context, n int64) error {
 	for {
 		s.mu.Lock()
@@ -41,38 +37,30 @@ func (s *Semaphore) AcquireWithContext(ctx context.Context, n int64) error {
 			s.mu.Unlock()
 			return nil
 		}
-
-		done := make(chan struct{})
-		go func() {
-			s.mu.Lock()
-			s.cond.Wait()
-			s.mu.Unlock()
-			close(done)
-		}()
-
 		s.mu.Unlock()
 
 		select {
-		case <-done:
+		case <-s.ch:
+			continue
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
 }
 
-// Release 释放n个信号量许可
 func (s *Semaphore) Release(n int64) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	s.permits += n
-	s.cond.Broadcast()
+	s.mu.Unlock()
+
+	select {
+	case s.ch <- struct{}{}:
+	default:
+	}
 }
 
-// AvailablePermits 获取当前可用的许可数
 func (s *Semaphore) AvailablePermits() int64 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	return s.permits
 }

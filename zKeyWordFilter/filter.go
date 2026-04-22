@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 )
-
-//DEA
 
 type KeyWord struct {
 	Children map[rune]*KeyWord
@@ -36,7 +35,6 @@ func (k *KeyWord) SplitString(str string) {
 }
 
 func (k *KeyWord) Find(r rune) *KeyWord {
-	//fmt.Println("find", string(r))
 	if k.Children == nil {
 		return nil
 	}
@@ -64,9 +62,14 @@ func (k *KeyWord) Print(x int) {
 
 type DeaFilter struct {
 	root *KeyWord
+	mu   sync.RWMutex
 }
 
+// AddWord 添加敏感词（线程安全）
 func (df *DeaFilter) AddWord(str string) {
+	df.mu.Lock()
+	defer df.mu.Unlock()
+
 	if df.root == nil {
 		df.root = &KeyWord{
 			Children: nil,
@@ -76,7 +79,15 @@ func (df *DeaFilter) AddWord(str string) {
 	df.root.SplitString(str)
 }
 
+// Filter 过滤敏感词（线程安全）
 func (df *DeaFilter) Filter(content string) string {
+	df.mu.RLock()
+	defer df.mu.RUnlock()
+
+	if df.root == nil {
+		return content
+	}
+
 	chars := []rune(content)
 	beginKey := -1
 	k := df.root
@@ -116,23 +127,35 @@ func (df *DeaFilter) Filter(content string) string {
 }
 
 func (df *DeaFilter) Print() {
-	df.root.Print(0)
+	df.mu.RLock()
+	defer df.mu.RUnlock()
+	if df.root != nil {
+		df.root.Print(0)
+	}
 }
 
 func NewFilter() *DeaFilter {
-	return &DeaFilter{}
+	return &DeaFilter{
+		root: &KeyWord{
+			Children: nil,
+		},
+	}
 }
 
-//////////////////////////////////////////////////
-//default
-
-var DefaultFilter *DeaFilter
+var (
+	DefaultFilter *DeaFilter
+	defaultMu     sync.RWMutex
+)
 
 func InitDefaultFilter() {
+	defaultMu.Lock()
+	defer defaultMu.Unlock()
 	DefaultFilter = NewFilter()
 }
 
 func ensureDefaultFilter() {
+	defaultMu.Lock()
+	defer defaultMu.Unlock()
 	if DefaultFilter == nil {
 		DefaultFilter = NewFilter()
 	}
@@ -145,6 +168,7 @@ func AddWord(str string) {
 
 func ParseFromFile(filename string) error {
 	ensureDefaultFilter()
+
 	fp, err := os.Open(filename)
 	if err != nil {
 		return err

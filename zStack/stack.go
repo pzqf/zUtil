@@ -1,8 +1,9 @@
 package zStack
 
-import "errors"
-
-//const arraySize = 10
+import (
+	"errors"
+	"sync"
+)
 
 type Stack struct {
 	top  int
@@ -54,4 +55,59 @@ func (s *Stack) IsEmpty() bool {
 
 func (s *Stack) Empty() {
 	s.top = 0
+}
+
+// ConcurrentStack 线程安全的栈
+type ConcurrentStack struct {
+	stack Stack
+	mu    sync.RWMutex
+}
+
+// NewConcurrent 创建线程安全的栈
+func NewConcurrent(arraySize int) *ConcurrentStack {
+	return &ConcurrentStack{
+		stack: New(arraySize),
+	}
+}
+
+func (cs *ConcurrentStack) Push(value interface{}) error {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	return cs.stack.Push(value)
+}
+
+func (cs *ConcurrentStack) Pop() (interface{}, error) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	return cs.stack.Pop()
+}
+
+func (cs *ConcurrentStack) Peek() (interface{}, error) {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	return cs.stack.Peek()
+}
+
+func (cs *ConcurrentStack) Get() []interface{} {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	return cs.stack.Get()
+}
+
+func (cs *ConcurrentStack) IsEmpty() bool {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	return cs.stack.IsEmpty()
+}
+
+func (cs *ConcurrentStack) Empty() {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.stack.Empty()
+}
+
+func (cs *ConcurrentStack) Len() int {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	return cs.stack.top
 }
