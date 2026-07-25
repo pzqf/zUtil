@@ -90,10 +90,12 @@ func (m *Map) Load(key interface{}) (interface{}, bool) {
 // - 键和值可以是任意类型，但建议使用基本类型
 // - 写操作比读操作慢，适合读多写少的场景
 func (m *Map) Store(key, value interface{}) {
-	if _, ok := m.sMap.Load(key); !ok {
+	// OPT-13: 用原子 Swap 判断键是否已存在来维护计数。此前 `Load(!ok) 再 count.Add(1) 再 Store`
+	// 是检查-再动作，两个 goroutine 并发 Store 同一新键会都判 !ok、都 +1 → Len() 多计。
+	// Swap 一步原子完成"存值 + 返回是否已存在"，计数准确无竞态。
+	if _, loaded := m.sMap.Swap(key, value); !loaded {
 		m.count.Add(1)
 	}
-	m.sMap.Store(key, value)
 }
 
 // Delete 删除指定键
