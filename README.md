@@ -768,7 +768,7 @@ bdLng, bdLat = zGps.WGS84ToBD09(116.3912, 39.9073)
 | zHashtable | 129 | ✅ 充分 | PASS | B+ | 自动扩容哈希表 |
 | zKeyWordFilter | 149 | ✅ 充分 | PASS | A- | DFA 算法正确，线程安全 |
 | zQueue | 163 | ⚠️ 不足 | PASS | B | 环形队列，功能偏简单 |
-| zTime | 125 | ⚠️ 不足 | PASS | B | 时间包装器，缺少时区处理 |
+| zTime | 125 | ⚠️ 不足 | PASS | B | 时间包装器，含时区(SetZone/GetZone) + 日/周/月边界 |
 | zGps | 137 | ⚠️ 不足 | PASS | B | 坐标转换正确 |
 | zDataConv | 59 | ⚠️ 不足 | PASS | B- | 类型转换，功能偏简单 |
 | zRand | 76 | ⚠️ 不足 | PASS | B | 随机数，缺少加权随机等 |
@@ -779,12 +779,14 @@ bdLng, bdLat = zGps.WGS84ToBD09(116.3912, 39.9073)
 | zError | 50 | ✅ 充分 | PASS | B+ | 带错误码错误类型 |
 | zUtils | 45 | ✅ 充分 | PASS | B+ | panic 恢复/工作目录 |
 
-### 已知问题
+### 已知问题（功能完整性，非缺陷；均无当前消费者）
+
+> 说明：这里列的是"可做得更全"的功能缺口，不是 Bug——20 个模块测试全 PASS，
+> 早期的并发缺陷已在更新日志中修复。以下项**目前没有任何内部代码依赖**，按需再补即可。
 
 1. **zQueue**：环形队列缺少并发安全版本
 2. **zTree**：仅支持 INode 接口，缺少泛型版本
-3. **zTime**：缺少时区处理功能
-4. **zRand**：缺少加权随机等高级随机功能
+3. **zRand**：缺少加权随机等高级随机功能
 
 ### 更新日志
 
@@ -807,7 +809,7 @@ bdLng, bdLat = zGps.WGS84ToBD09(116.3912, 39.9073)
 #### P2 - 功能增强
 
 - [ ] zRand 添加加权随机（WeightedRandom）、洗牌（Shuffle）等
-- [ ] zTime 添加时区处理、工作日计算等
+- [ ] zTime 添加工作日计算等（时区处理已具备：SetZone/GetZone）
 - [ ] zQueue 添加阻塞队列（BlockingQueue）、优先级队列
 - [ ] zDataConv 添加更多类型转换（uint 系列、[]byte ↔ hex 等）
 - [ ] zCache 添加统计接口（命中率、淘汰数等）
