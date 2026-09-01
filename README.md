@@ -4,6 +4,8 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Zero Dependencies](https://img.shields.io/badge/Dependencies-Zero-green.svg)]()
 
+**文档版本**：0.0.1
+
 zUtil 是一个 Go 语言通用工具集，提供并发安全的数据结构、加密、缓存、字符串处理等基础功能。所有模块零外部依赖（仅标准库），模块间完全独立，可按需引入。
 
 ## 目录
@@ -188,7 +190,7 @@ zConcurrency 提供六种并发控制工具，覆盖工作池、信号量、限�
 
 | 工具 | 底层实现 | 适用场景 |
 |------|----------|----------|
-| WorkerPool | context.Cancel + chan Task | 消息处理、任务调度 |
+| WorkerPool | 状态机 + 有界 task/slot channel | 消息处理、任务调度 |
 | Semaphore | sync.Mutex + chan struct{} | 资源限流、连接池 |
 | RateLimiter | 令牌桶 + atomic.Int64 | API 限流、流量控制 |
 | MutexWithTimeout | sync.Mutex + chan struct{} | 超时加锁、防死锁 |
@@ -206,15 +208,20 @@ pool.Start()
 err := pool.Submit(func() error {
     return nil
 })
+if errors.Is(err, zConcurrency.ErrWorkerPoolFull) {
+    // 非阻塞 admission 被拒绝
+}
 
 err = pool.SubmitWithContext(ctx, func() error {
     return nil
 })
 
 pool.Stop()
-pool.Wait()
-errors := pool.Errors()
+stats := pool.Stats()
 ```
+
+`Submit` 队列满时立即返回 `ErrWorkerPoolFull`；需要等待容量时显式使用 `SubmitWithContext`。
+`Stop` 原子拒绝新任务、排空已接纳任务并等待 worker 退出，且可并发重复调用；池停止后不可伪重启。
 
 #### Semaphore
 
@@ -280,7 +287,8 @@ errors := wg.Errors()
 ### 注意事项
 
 1. **WorkerPool 必须启动**：`Submit` 前必须调用 `Start()`
-2. **WorkerPool 队列满**：`Submit` 会阻塞，使用 `SubmitWithContext` 避免无限等待
+2. **WorkerPool 队列满**：`Submit` 非阻塞返回 `ErrWorkerPoolFull`；只有 `SubmitWithContext` 会等待容量，
+   且由 context 控制上限
 3. **Semaphore 死锁**：`Acquire(n)` 中 n 不能超过初始 permits
 4. **RateLimiter 轮询**：`Wait` 使用 1ms 轮询，高频场景考虑优化
 5. **MutexWithTimeout panic**：未 Lock 时调用 Unlock 会 panic
@@ -789,6 +797,11 @@ bdLng, bdLat = zGps.WGS84ToBD09(116.3912, 39.9073)
 3. **zRand**：缺少加权随机等高级随机功能
 
 ### 更新日志
+
+#### 文档 0.0.1 (2026-08-31)
+
+- **zConcurrency.WorkerPool**：记录非阻塞 `Submit`、可取消 admission、稳定错误、drain-on-Stop 和
+  `WorkerPoolStats`；修正旧的“Submit 队列满会阻塞”说明
 
 #### v0.2.0 (2026-04)
 
